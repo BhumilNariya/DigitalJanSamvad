@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { StatusBadge, type IssueStatus } from '@/components/status-badge'
-import { CommentBox, type Comment } from '@/components/comment-box'
+import { CommentSection } from '@/components/comment-section'
 import {
   MapPin,
   Clock,
@@ -83,21 +83,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params)
   const issue = mockIssueDetails[id] || mockIssueDetails['1']
   const [upvoted, setUpvoted] = useState(false)
-  const [localComments, setLocalComments] = useState<Comment[]>(issue.comments)
 
   const handleUpvote = () => {
     setUpvoted(!upvoted)
-  }
-
-  const handleAddComment = (content: string) => {
-    const newComment: Comment = {
-      id: `c${localComments.length + 1}`,
-      author: 'You',
-      content,
-      timestamp: new Date(),
-      upvotes: 0,
-    }
-    setLocalComments([...localComments, newComment])
   }
 
   return (
@@ -207,14 +195,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {/* Comments */}
-            <Card>
-              <CardContent className="p-6">
-                <CommentBox
-                  comments={localComments}
-                  onAddComment={handleAddComment}
-                />
-              </CardContent>
-            </Card>
+            <CommentSection issueId={id} />
           </div>
 
           {/* Sidebar */}
@@ -262,7 +243,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Comments</p>
-                    <p className="text-foreground font-medium">{localComments.length}</p>
+                    <p className="text-foreground font-medium">{issue.comments.length}</p>
                   </div>
                 </div>
               </CardContent>

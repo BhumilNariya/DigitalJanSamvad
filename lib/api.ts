@@ -3,6 +3,8 @@ import axios from 'axios';
 import type { 
   User, 
   Issue, 
+  Comment,
+  Notification,
   LoginCredentials, 
   RegisterData, 
   CreateIssueData,
@@ -13,6 +15,7 @@ const apiClient = axios.create({
   baseURL: 'http://localhost:5000/api',
   withCredentials: true,
 });
+
 
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> {
@@ -156,4 +159,51 @@ export const categoryApi = {
   }
 };
 
+export const commentApi = {
+  async getByIssue(issueId: string): Promise<ApiResponse<Comment[]>> {
+    try {
+      const res = await apiClient.get(`/issues/${issueId}/comments`);
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch comments' };
+    }
+  },
+  async create(issueId: string, text: string): Promise<ApiResponse<Comment>> {
+    try {
+      const res = await apiClient.post(`/issues/${issueId}/comments`, { text });
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to post comment' };
+    }
+  }
+};
+
+export const notificationApi = {
+  async getAll(): Promise<ApiResponse<{ notifications: Notification[]; unreadCount: number }>> {
+    try {
+      const res = await apiClient.get('/users/notifications');
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch notifications' };
+    }
+  },
+  async markRead(id: string): Promise<ApiResponse<null>> {
+    try {
+      await apiClient.patch(`/users/notifications/${id}/read`);
+      return { success: true, data: null };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to mark notification read' };
+    }
+  },
+  async markAllRead(): Promise<ApiResponse<null>> {
+    try {
+      await apiClient.patch('/users/notifications/read-all');
+      return { success: true, data: null };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to mark all read' };
+    }
+  }
+};
+
 export default apiClient;
+

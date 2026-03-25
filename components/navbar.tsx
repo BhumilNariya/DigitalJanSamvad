@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { MapPin, Menu, X, LogOut, User as UserIcon } from 'lucide-react'
+import { MessageSquare, Menu, X, LogOut, User as UserIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { NotificationBell } from '@/components/notification-bell'
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -17,9 +18,9 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-primary-foreground" />
+              <MessageSquare className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg text-foreground hidden sm:inline">DigitalJanSamvad</span>
+            <span className="font-bold text-lg text-foreground hidden sm:inline">Samvad</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -39,11 +40,12 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated && user ? (
               <>
-                <div className="flex items-center gap-2 mr-2">
-                  <UserIcon className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user.name}</span>
-                </div>
-                <Button variant="outline" onClick={logout}>
+                <Link href="/profile" className="flex items-center gap-2 mr-1 text-sm font-medium hover:text-primary transition-colors">
+                  <UserIcon className="w-4 h-4 text-muted-foreground" />
+                  <span>{user.name}</span>
+                </Link>
+                <NotificationBell />
+                <Button variant="outline" size="sm" onClick={logout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>

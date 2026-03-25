@@ -12,7 +12,9 @@ const IssueSchema = new mongoose.Schema({
     longitude: { type: Number, required: true },
     address: { type: String }
   },
-  status: { type: String, enum: ['pending', 'in-progress', 'resolved'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'assigned', 'in-progress', 'resolved'], default: 'pending' },
+  priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
 }, { timestamps: true });
 

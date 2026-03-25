@@ -32,7 +32,8 @@ export interface RegisterData {
 }
 
 // Issue Types
-export type IssueStatus = 'pending' | 'in-progress' | 'solved' | 'complete' | 'resolved' | 'open' | 'closed'
+export type IssueStatus = 'pending' | 'assigned' | 'in-progress' | 'solved' | 'complete' | 'resolved' | 'open' | 'closed'
+export type IssuePriority = 'low' | 'medium' | 'high'
 
 export type IssueCategory = string;
 
@@ -48,6 +49,7 @@ export interface Issue {
   description: string
   category: IssueCategory
   status: IssueStatus
+  priority: IssuePriority
   location: IssueLocation
   images?: string[]
   reportedBy: {
@@ -78,7 +80,20 @@ export interface Comment {
     avatar?: string
   }
   content: string
+  text?: string
   upvotes: number
+  createdAt: string
+}
+
+// Notification Types
+export type NotificationType = 'status_change' | 'new_comment' | 'issue_assigned' | 'issue_resolved'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  message: string
+  issueId?: string
+  isRead: boolean
   createdAt: string
 }
 
@@ -120,6 +135,7 @@ export const categoryIcons: Record<IssueCategory, string> = {
 export const statusColors: Record<IssueStatus, string> = {
   'pending': '#ef4444',
   'open': '#ef4444',
+  'assigned': '#8b5cf6',
   'in-progress': '#f59e0b',
   'solved': '#22c55e',
   'resolved': '#22c55e',
@@ -130,6 +146,7 @@ export const statusColors: Record<IssueStatus, string> = {
 export const statusLabels: Record<IssueStatus, string> = {
   'pending': 'Pending',
   'open': 'Open',
+  'assigned': 'Assigned',
   'in-progress': 'In Progress',
   'solved': 'Solved',
   'resolved': 'Resolved',
