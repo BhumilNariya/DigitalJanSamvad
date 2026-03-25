@@ -56,7 +56,7 @@ const mockUsers: AdminUser[] = [
   },
 ]
 
-const statusColors: Record<AdminUser['status'], "default" | "secondary" | "destructive"> = {
+const statusColors: Record<AdminUser['status'], string> = {
   active: 'default',
   inactive: 'secondary',
   suspended: 'destructive',

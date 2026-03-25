@@ -44,7 +44,7 @@ export default function Home() {
     <div className="w-full">
       
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary/5 via-background to-background">
+      <section className="bg-linear-to-br from-primary/5 via-background to-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
           <div className="max-w-3xl">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 text-balance">

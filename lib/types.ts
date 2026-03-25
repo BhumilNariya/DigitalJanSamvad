@@ -65,7 +65,7 @@ export interface CreateIssueData {
   description: string
   category: IssueCategory
   location: IssueLocation
-  images?: string[]
+  images?: (string | File)[]
 }
 
 // Comment Types

@@ -95,7 +95,7 @@ export default function ReportIssuePage() {
   return (
     <div className="w-full">
       {/* Header */}
-      <section className="bg-gradient-to-br from-primary/5 via-background to-background border-b border-border">
+      <section className="bg-linear-to-br from-primary/5 via-background to-background border-b border-border">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold text-foreground mb-4">Report an Issue</h1>
           <p className="text-muted-foreground text-lg">
@@ -110,7 +110,7 @@ export default function ReportIssuePage() {
         {/* Info Alert */}
         <Card className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
           <CardContent className="p-4 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-foreground">
                 Your report will help make our community better
@@ -158,6 +158,7 @@ export default function ReportIssuePage() {
                 </label>
                 <select
                   name="category"
+                  aria-label="Issue Category"
                   value={formData.category}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"

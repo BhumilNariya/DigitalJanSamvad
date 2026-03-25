@@ -234,7 +234,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
-                <Button className="w-full" variant="outline" className="text-destructive">
+                <Button className="w-full text-destructive" variant="outline">
                   <Flag className="w-4 h-4 mr-2" />
                   Report
                 </Button>
