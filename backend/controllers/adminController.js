@@ -61,20 +61,37 @@ const getUsers = async (req, res) => {
   }
 };
 
-// @desc    Get all issues (admin view)
-// @route   GET /api/admin/issues
+// @desc    Get all issues (admin view) with pagination
+// @route   GET /api/admin/issues?page=1&limit=10
 // @access  Private/Admin
 const getAdminIssues = async (req, res) => {
   try {
+    // FIX #8: Pagination — prevents loading all issues into memory at once
+    // Usage: GET /api/admin/issues?page=1&limit=10
+    const page = Math.max(parseInt(req.query.page) || 1, 1);       // min page = 1
+    const limit = Math.min(parseInt(req.query.limit) || 10, 100);  // max 100 per page
+    const skip = (page - 1) * limit;
+
+    const totalIssues = await Issue.countDocuments();
+
     const issues = await Issue.find({})
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
-      .sort({ createdAt: -1 });
-    res.json(issues);
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      issues,
+      totalIssues,
+      totalPages: Math.ceil(totalIssues / limit),
+      currentPage: page,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // @desc    Update issue status
 // @route   PATCH /api/admin/issues/:id/status

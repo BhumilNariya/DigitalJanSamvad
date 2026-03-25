@@ -7,47 +7,30 @@ const { getIo } = require('../socket/socketServer');
 // @access  Private
 const createIssue = async (req, res) => {
   try {
-    const { title, description, category, email, mobileNumber, latitude, longitude, address } = req.body;
-    let imageUrl = '';
+    console.log("Uploaded file:", req.file);
     
-    if (req.file) {
-      imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
-    }
+    const { title, description, category, location } = req.body;
+    const imageUrl = req.file ? req.file.path : "";
 
-    const issue = await Issue.create({
+    console.log("Image URL:", imageUrl);
+
+    const issue = new Issue({
       title,
       description,
       category,
-      imageUrl,
-      email,
-      mobileNumber,
-      location: {
-        latitude: Number(latitude),
-        longitude: Number(longitude),
-        address
-      },
+      location,
+      imageUrl: imageUrl,
       reportedBy: req.user._id
     });
 
-    // Update user points and issues reported
-    const user = await User.findById(req.user._id);
-    user.points += 10;
-    user.issuesReported += 1;
-    await user.save();
+    await issue.save();
 
     // Populate category and user for socket emit
     const populatedIssue = await Issue.findById(issue._id)
       .populate('category', 'name icon')
       .populate('reportedBy', 'name');
 
-    // Emit socket event
-    getIo().emit('newIssue', populatedIssue);
-
-    // Also emit leaderboard update as points changed
-    const leaderboard = await User.find({}).sort({ points: -1 }).limit(10).select('name avatar points issuesReported');
-    getIo().emit('leaderboardUpdated', leaderboard);
-
-    res.status(201).json(populatedIssue);
+    res.status(201).json({ success: true, issue: populatedIssue });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

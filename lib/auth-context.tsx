@@ -23,14 +23,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check for existing session on mount
   useEffect(() => {
     const checkAuth = async () => {
+      // First, attempt to instantaneously hydrate from localStorage
+      const cachedToken = localStorage.getItem('jansamvad_token')
+      const cachedUser = localStorage.getItem('jansamvad_user')
+      
+      if (cachedToken && cachedUser) {
+        try {
+          setState({
+            user: JSON.parse(cachedUser),
+            isAuthenticated: true,
+            isLoading: false,
+          })
+        } catch(e) { /* ignore parse error */ }
+      }
+
+      // Then verify with backend quietly
       const response = await authApi.getCurrentUser()
       if (response.success && response.data) {
+        localStorage.setItem('jansamvad_user', JSON.stringify(response.data))
         setState({
           user: response.data,
           isAuthenticated: true,
           isLoading: false,
         })
       } else {
+        localStorage.removeItem('jansamvad_token')
+        localStorage.removeItem('jansamvad_user')
         setState({
           user: null,
           isAuthenticated: false,
@@ -47,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.login(credentials)
     
     if (response.success && response.data) {
+      localStorage.setItem('jansamvad_token', response.data.token)
+      localStorage.setItem('jansamvad_user', JSON.stringify(response.data.user))
       setState({
         user: response.data.user,
         isAuthenticated: true,
@@ -65,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.register(data)
     
     if (response.success && response.data) {
+      localStorage.setItem('jansamvad_token', response.data.token)
+      localStorage.setItem('jansamvad_user', JSON.stringify(response.data.user))
       setState({
         user: response.data.user,
         isAuthenticated: true,
@@ -79,6 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await authApi.logout()
+    localStorage.removeItem('jansamvad_token')
+    localStorage.removeItem('jansamvad_user')
     setState({
       user: null,
       isAuthenticated: false,

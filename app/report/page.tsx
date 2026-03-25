@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { AlertCircle, MapPin, Upload } from 'lucide-react'
-import { issuesApi, categoryApi } from '@/lib/api'
+import { categoryApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import axios from 'axios'
 
 export default function ReportIssuePage() {
   const { user } = useAuth();
@@ -16,13 +17,11 @@ export default function ReportIssuePage() {
   const [photo, setPhoto] = useState<File | null>(null)
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
+  const [formDataState, setFormDataState] = useState({
     title: '',
     description: '',
     category: '',
     location: '',
-    email: '',
-    phone: '',
   })
 
   useEffect(() => {
@@ -41,7 +40,7 @@ export default function ReportIssuePage() {
     >
   ) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
+    setFormDataState((prev) => ({
       ...prev,
       [name]: value,
     }))
@@ -61,36 +60,35 @@ export default function ReportIssuePage() {
         return;
     }
     
-    setIsSubmitting(true)
+    const formData = new FormData();
+    formData.append("title", formDataState.title);
+    formData.append("description", formDataState.description);
+    formData.append("category", formDataState.category);
+    formData.append("location", formDataState.location);
 
-    const issueData = {
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        location: {
-            lat: 23.0225, // Mock coords for now
-            lng: 72.5714,
-            address: formData.location
-        },
-        images: photo ? [photo] : []
+    if (photo) {
+      formData.append("image", photo);
     }
 
-    const res = await issuesApi.create(issueData, user);
-    
-    setIsSubmitting(false)
-    if (res.success) {
-        router.push('/report/success')
-    } else {
-        alert(res.error || 'Failed to submit report');
+    try {
+      const res = await axios.post("http://localhost:5000/api/issues", formData, {
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      setIsSubmitting(false);
+      router.push('/report/success');
+    } catch (error) {
+      setIsSubmitting(false);
+      alert('Failed to create issue');
     }
   }
 
   const isFormValid =
-    formData.title.trim() &&
-    formData.description.trim() &&
-    formData.category &&
-    formData.location.trim() &&
-    formData.email.trim()
+    formDataState.title.trim() &&
+    formDataState.description.trim() &&
+    formDataState.category &&
+    formDataState.location.trim()
 
   return (
     <div className="w-full">
@@ -142,7 +140,7 @@ export default function ReportIssuePage() {
                   type="text"
                   name="title"
                   placeholder="e.g., Large pothole on Main Street"
-                  value={formData.title}
+                  value={formDataState.title}
                   onChange={handleChange}
                   required
                 />
@@ -159,7 +157,7 @@ export default function ReportIssuePage() {
                 <select
                   name="category"
                   aria-label="Issue Category"
-                  value={formData.category}
+                  value={formDataState.category}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
                   required
@@ -185,7 +183,7 @@ export default function ReportIssuePage() {
                     name="location"
                     placeholder="e.g., Main Street and 5th Avenue"
                     className="pl-10"
-                    value={formData.location}
+                    value={formDataState.location}
                     onChange={handleChange}
                     required
                   />
@@ -203,7 +201,7 @@ export default function ReportIssuePage() {
                 <Textarea
                   name="description"
                   placeholder="Please provide detailed information about the issue, including when you first noticed it and any safety concerns..."
-                  value={formData.description}
+                  value={formDataState.description}
                   onChange={handleChange}
                   rows={6}
                   required
@@ -218,53 +216,44 @@ export default function ReportIssuePage() {
                 <label className="text-sm font-medium text-foreground block mb-2">
                   Photo (Optional)
                 </label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
-                  <Input 
-                    type="file" 
-                    accept="image/*" 
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
-                    onChange={handleFileChange} 
-                  />
-                  <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-foreground font-medium">{photo ? photo.name : 'Upload a photo'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    PNG, JPG up to 10MB (optional)
-                  </p>
-                </div>
+                {photo ? (
+                  <div className="relative border border-border rounded-lg overflow-hidden group">
+                    <div className="h-48 w-full bg-muted">
+                      <img 
+                        src={URL.createObjectURL(photo)} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pb-2">
+                       <Button 
+                         type="button" 
+                         variant="destructive" 
+                         size="sm"
+                         onClick={() => setPhoto(null)}
+                       >
+                         Remove Image
+                       </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative bg-muted/20">
+                    <Input 
+                      type="file" 
+                      accept="image/*" 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                      onChange={handleFileChange} 
+                    />
+                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-foreground font-medium">Upload a photo</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PNG, JPG up to 5MB (optional)
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Contact Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground block mb-2">
-                    Email *
-                  </label>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="your@email.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    We'll use this to send updates about your report
-                  </p>
-                </div>
 
-                <div>
-                  <label className="text-sm font-medium text-foreground block mb-2">
-                    Phone (Optional)
-                  </label>
-                  <Input
-                    type="tel"
-                    name="phone"
-                    placeholder="(555) 123-4567"
-                    value={formData.phone}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
 
               {/* Submit Section */}
               <div className="border-t border-border pt-6">

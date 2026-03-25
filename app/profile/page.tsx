@@ -193,8 +193,21 @@ export default function CitizenDashboardPage() {
               <Link
                 key={issue._id || issue.id}
                 href={`/issues/${issue._id || issue.id}`}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 hover:bg-muted/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 hover:bg-muted/50 transition-colors"
               >
+                {/* Thumbnail Image */}
+                <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center">
+                  {(issue.image || issue.image) ? (
+                    <img 
+                      src={issue.image || issue.image} 
+                      alt={issue.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground uppercase font-medium">No Img</span>
+                  )}
+                </div>
+
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{issue.title}</p>
                   <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">

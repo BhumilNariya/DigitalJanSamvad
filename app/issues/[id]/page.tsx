@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, use } from 'react'
+import { useState, use, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { StatusBadge, type IssueStatus } from '@/components/status-badge'
+import { StatusBadge } from '@/components/status-badge'
+import type { IssueStatus } from '@/lib/types'
 import { CommentSection } from '@/components/comment-section'
 import {
   MapPin,
@@ -27,7 +28,6 @@ interface IssueDetail {
   status: IssueStatus
   category: string
   upvotes: number
-  comments: Comment[]
   reportedBy: string
   reportedDate: Date
   image?: string
@@ -60,29 +60,54 @@ const mockIssueDetails: Record<string, IssueDetail> = {
         message: 'Repair work is expected to begin after coordination with traffic police',
       },
     ],
-    comments: [
-      {
-        id: 'c1',
-        author: 'Priya Sharma',
-        content: 'This pothole is getting worse! My scooty got damaged yesterday. Very dangerous for two-wheelers.',
-        timestamp: new Date('2026-03-11'),
-        upvotes: 34,
-      },
-      {
-        id: 'c2',
-        author: 'Amit Desai',
-        content: 'Finally VMC is taking action. This has been a problem for months during monsoon season.',
-        timestamp: new Date('2026-03-13'),
-        upvotes: 12,
-      },
-    ],
   },
 }
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const issue = mockIssueDetails[id] || mockIssueDetails['1']
+  
+  const [issue, setIssue] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const [upvoted, setUpvoted] = useState(false)
+
+  useEffect(() => {
+    import('@/lib/api').then(({ issuesApi }) => {
+      issuesApi.getById(id).then(res => {
+        if (res.success && res.data) {
+          // Map backend data to our frontend format
+          const dbIssue = res.data as any
+          setIssue({
+            id: dbIssue._id,
+            title: dbIssue.title,
+            description: dbIssue.description,
+            longDescription: dbIssue.description,
+            image: dbIssue.image,
+            location: dbIssue.location?.address || 'Unknown',
+            status: dbIssue.status,
+            category: dbIssue.category?.name || 'Other',
+            upvotes: dbIssue.upvotes || 0,
+            reportedBy: dbIssue.reportedBy?.name || 'Citizen',
+            reportedDate: new Date(dbIssue.createdAt),
+            updates: []
+          })
+        } else {
+          // Fallback to mock data if not found in real DB
+          setIssue(mockIssueDetails[id] || mockIssueDetails['1'])
+        }
+        setLoading(false)
+      })
+    })
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="w-full h-96 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (!issue) return <div>Issue not found</div>
 
   const handleUpvote = () => {
     setUpvoted(!upvoted)
@@ -159,21 +184,33 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            
+            {/* Issue Image — Renders if Cloudinary image exists */}
+            {(issue.image || issue.image) && (
+              <Card className="overflow-hidden bg-muted">
+                <img 
+                  src={issue.image || issue.image} 
+                  alt={issue.title} 
+                  className="w-full max-h-[400px] object-cover" 
+                />
+              </Card>
+            )}
+
             {/* Description */}
             <Card>
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-foreground mb-3">Description</h2>
-                <p className="text-foreground leading-relaxed">{issue.longDescription}</p>
+                <p className="text-foreground leading-relaxed whitespace-pre-wrap">{issue.longDescription}</p>
               </CardContent>
             </Card>
 
             {/* Updates */}
-            {issue.updates.length > 0 && (
+            {issue.updates && issue.updates.length > 0 && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-lg font-semibold text-foreground mb-4">Updates</h2>
                   <div className="space-y-4">
-                    {issue.updates.map((update, idx) => (
+                    {issue.updates.map((update: any, idx: number) => (
                       <div key={idx} className="flex gap-4">
                         <div className="flex flex-col items-center">
                           <div className="w-3 h-3 rounded-full bg-primary mt-2" />
@@ -240,10 +277,6 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                     <p className="text-foreground font-medium">
                       {issue.upvotes + (upvoted ? 1 : 0)} upvotes
                     </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs mb-1">Comments</p>
-                    <p className="text-foreground font-medium">{issue.comments.length}</p>
                   </div>
                 </div>
               </CardContent>

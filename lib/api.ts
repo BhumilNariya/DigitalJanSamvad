@@ -16,12 +16,22 @@ const apiClient = axios.create({
   withCredentials: true,
 });
 
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('jansamvad_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 
 export const authApi = {
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> {
     try {
       const res = await apiClient.post('/auth/login', credentials);
-      return { success: true, data: { user: res.data, token: 'cookie-based' } };
+      return { success: true, data: { user: res.data, token: res.data.token || 'cookie-based' } };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.message || 'Login failed' };
     }
@@ -35,7 +45,7 @@ export const authApi = {
         mobileNumber: data.phone,
       };
       const res = await apiClient.post('/auth/register', payload);
-      return { success: true, data: { user: res.data, token: 'cookie-based' } };
+      return { success: true, data: { user: res.data, token: res.data.token || 'cookie-based' } };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.message || 'Registration failed' };
     }
@@ -92,12 +102,9 @@ export const issuesApi = {
         formData.append('image', data.images[0]);
       }
 
-      const res = await apiClient.post('/issues', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return { success: true, data: res.data };
+      const res = await apiClient.post('/issues', formData);
+      // Handle the new standardized { success, message, issue } wrapper from backend gracefully
+      return { success: true, data: res.data.issue || res.data };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.message || 'Failed to create issue' };
     }

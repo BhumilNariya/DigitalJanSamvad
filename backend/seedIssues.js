@@ -82,7 +82,7 @@ const seedIssues = async () => {
             },
             status: status,
             reportedBy: user._id,
-            imageUrl: ''
+            image: ''
         });
 
         pointsEarned += 10;

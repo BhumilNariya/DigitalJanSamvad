@@ -1,72 +1,61 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Search, Eye, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Search, Eye, CheckCircle2, AlertCircle, ImageIcon } from 'lucide-react'
+import { issuesApi } from '@/lib/api'
+import Link from 'next/link'
 
 interface AdminIssue {
   id: string
   title: string
   category: string
-  status: 'open' | 'in-progress' | 'resolved'
+  status: 'open' | 'pending' | 'in-progress' | 'resolved' | 'closed'
   reportedBy: string
   upvotes: number
+  image?: string
   createdAt: string
+  _id?: string
 }
 
-const mockIssues: AdminIssue[] = [
-  {
-    id: '1',
-    title: 'Pothole on MG Road',
-    category: 'Infrastructure',
-    status: 'in-progress',
-    reportedBy: 'Rajesh Patel',
-    upvotes: 248,
-    createdAt: '2026-03-10',
-  },
-  {
-    id: '2',
-    title: 'Street Light Not Working',
-    category: 'Safety',
-    status: 'open',
-    reportedBy: 'Priya Sharma',
-    upvotes: 156,
-    createdAt: '2026-03-12',
-  },
-  {
-    id: '3',
-    title: 'Public Garden Renovation',
-    category: 'Parks',
-    status: 'resolved',
-    reportedBy: 'Amit Desai',
-    upvotes: 89,
-    createdAt: '2026-02-28',
-  },
-]
-
-const statusColors = {
-  open: 'destructive',
-  'in-progress': 'secondary',
-  resolved: 'default',
-}
-
-const statusIcons = {
+const statusIcons: Record<string, any> = {
   open: AlertCircle,
+  pending: AlertCircle,
   'in-progress': AlertCircle,
   resolved: CheckCircle2,
+  closed: CheckCircle2,
 }
 
 export default function AdminIssuesPage() {
+  const [issuesData, setIssuesData] = useState<AdminIssue[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'open' | 'in-progress' | 'resolved'>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
 
-  const filteredIssues = mockIssues.filter((issue) => {
+  useEffect(() => {
+    issuesApi.getAll().then(res => {
+      if (res.success && res.data) {
+        const formatted = res.data.map((issue: any) => ({
+          ...issue,
+          id: issue._id,
+          category: issue.category?.name || 'Other',
+          reportedBy: issue.reportedBy?.name || 'Unknown',
+          status: issue.status || 'open'
+        }))
+        setIssuesData(formatted)
+      }
+      setLoading(false)
+    })
+  }, [])
+
+  const filteredIssues = issuesData.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.category.toLowerCase().includes(searchQuery.toLowerCase())
+      issue.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      issue.reportedBy.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = filterStatus === 'all' || issue.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -93,14 +82,14 @@ export default function AdminIssuesPage() {
           </div>
 
           <div className="flex gap-2">
-            {(['all', 'open', 'in-progress', 'resolved'] as const).map((status) => (
+            {(['all', 'open', 'pending', 'in-progress', 'resolved'] as const).map((status) => (
               <Button
                 key={status}
                 variant={filterStatus === status ? 'default' : 'outline'}
                 onClick={() => setFilterStatus(status)}
                 className="capitalize"
               >
-                {status === 'in-progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
+                {status.replace('-', ' ')}
               </Button>
             ))}
           </div>
@@ -110,13 +99,17 @@ export default function AdminIssuesPage() {
       {/* Issues Table */}
       <Card className="bg-card border-border">
         <CardHeader>
-          <h2 className="text-lg font-bold text-foreground">Issues ({filteredIssues.length})</h2>
+          <div className="flex items-center justify-between">
+             <h2 className="text-lg font-bold text-foreground">Issues ({filteredIssues.length})</h2>
+             {loading && <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-semibold text-foreground w-16">Image</th>
                   <th className="text-left py-3 px-4 font-semibold text-foreground">Title</th>
                   <th className="text-left py-3 px-4 font-semibold text-foreground">Category</th>
                   <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
@@ -126,25 +119,41 @@ export default function AdminIssuesPage() {
                 </tr>
               </thead>
               <tbody>
+                {filteredIssues.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No issues match the current filters</td>
+                  </tr>
+                )}
                 {filteredIssues.map((issue) => {
-                  const StatusIcon = statusIcons[issue.status]
+                  const StatusIcon = statusIcons[issue.status] || AlertCircle
                   return (
                     <tr key={issue.id} className="border-b border-border hover:bg-secondary/50">
-                      <td className="py-3 px-4 text-foreground">{issue.title}</td>
+                      <td className="py-2 px-4">
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-muted flex items-center justify-center border border-border">
+                           {issue.image ? (
+                             <img src={issue.image} alt="Thumbnail" className="w-full h-full object-cover" />
+                           ) : (
+                             <ImageIcon className="w-4 h-4 text-muted-foreground/50" />
+                           )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-foreground font-medium">{issue.title}</td>
                       <td className="py-3 px-4 text-muted-foreground">{issue.category}</td>
                       <td className="py-3 px-4">
-                        <Badge className="capitalize gap-1">
+                        <Badge className="capitalize gap-1" variant={issue.status === 'resolved' ? 'default' : 'secondary'}>
                           <StatusIcon className="w-3 h-3" />
-                          {issue.status === 'in-progress' ? 'In Progress' : issue.status}
+                          {issue.status.replace('-', ' ')}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-muted-foreground">{issue.reportedBy}</td>
-                      <td className="py-3 px-4 text-foreground font-semibold">{issue.upvotes}</td>
+                      <td className="py-3 px-4 text-foreground font-semibold">{issue.upvotes || 0}</td>
                       <td className="py-3 px-4">
-                        <Button size="sm" variant="ghost" className="gap-1">
-                          <Eye className="w-4 h-4" />
-                          Review
-                        </Button>
+                        <Link href={`/issues/${issue.id}`}>
+                          <Button size="sm" variant="ghost" className="gap-1">
+                            <Eye className="w-4 h-4" />
+                            Review
+                          </Button>
+                        </Link>
                       </td>
                     </tr>
                   )

@@ -1,4 +1,6 @@
+// SECURITY FIX #5: All require statements moved to top of file (clean Node.js structure)
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -15,29 +17,38 @@ initSocket(server);
 // Connect Database
 connectDB();
 
-// Middleware
+// SECURITY FIX #4: CORS origin loaded from environment variable (not hardcoded)
+// Set CLIENT_URL in .env for each environment (dev/staging/production)
+const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:3000';
+
 app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
+  origin: allowedOrigin,
+  credentials: true,
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Default Route
-app.get('/', (req, res) => res.send('API Running'));
+app.get('/', (req, res) => res.send('Samvad API Running'));
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/issues', require('./routes/issueRoutes'));
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-const PORT = process.env.PORT || 5000;
+// SECURITY: Global error handler — prevents leaking raw stack traces to clients
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err.stack || err.message);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error'
+  });
+});
 
-server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`Server started on port ${PORT} | CORS origin: ${allowedOrigin}`));

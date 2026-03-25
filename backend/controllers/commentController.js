@@ -23,6 +23,17 @@ const getComments = async (req, res) => {
 const addComment = async (req, res) => {
   try {
     const { text } = req.body;
+
+    // FIX #7: Validate comment text — reject empty or whitespace-only submissions
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({ message: 'Comment text cannot be empty' });
+    }
+
+    // Enforce a max character limit to prevent abuse
+    if (text.trim().length > 1000) {
+      return res.status(400).json({ message: 'Comment cannot exceed 1000 characters' });
+    }
+
     const issue = await Issue.findById(req.params.id).populate('reportedBy', 'name');
 
     if (!issue) {
@@ -32,15 +43,15 @@ const addComment = async (req, res) => {
     const comment = await Comment.create({
       issue: req.params.id,
       author: req.user._id,
-      text,
+      text: text.trim(), // always store trimmed text
     });
 
     const populatedComment = await Comment.findById(comment._id).populate('author', 'name avatar');
 
-    // Emit socket event for real-time comment
+    // Emit socket event for real-time comment display
     getIo().emit('newComment', { issueId: req.params.id, comment: populatedComment });
 
-    // Notify the issue reporter if commenter is someone else
+    // Notify the issue reporter only if the commenter is someone else
     if (issue.reportedBy && issue.reportedBy._id.toString() !== req.user._id.toString()) {
       const notification = await Notification.create({
         recipient: issue.reportedBy._id,
@@ -49,7 +60,7 @@ const addComment = async (req, res) => {
         issueId: issue._id,
       });
 
-      // Emit targeted notification to the reporter's socket room
+      // Emit targeted notification to the reporter's private socket room
       getIo().to(issue.reportedBy._id.toString()).emit('newNotification', notification);
     }
 

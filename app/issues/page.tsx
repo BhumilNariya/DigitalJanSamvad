@@ -34,11 +34,12 @@ export default function IssuesPage() {
           title: issue.title,
           description: issue.description,
           location: issue.location?.address || 'Unknown',
-          status: issue.status === 'in-progress' ? 'in-progress' : (issue.status === 'resolved' ? 'resolved' : 'open'),
-          category: issue.category?.name || 'Other',
-          upvotes: 0,
-          comments: 0,
-          createdAt: issue.createdAt || new Date()
+            status: issue.status === 'in-progress' ? 'in-progress' : (issue.status === 'resolved' ? 'resolved' : 'open'),
+            category: issue.category?.name || 'Other',
+            upvotes: issue.upvotes || 0,
+            image: issue.image,
+            comments: issue.comments || 0,
+            createdAt: issue.createdAt || new Date()
         }));
         setIssuesData(formatted);
       }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { MapPin, X, ThumbsUp, User } from 'lucide-react'
-import type { IssueStatus } from './status-badge'
+import type { IssueStatus } from '@/lib/types'
 import { issuesApi } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
 
@@ -275,7 +275,7 @@ export function IssuesMap() {
           categoryIcon: issue.category?.icon || '📋',
           lat: issue.location?.latitude || 0,
           lng: issue.location?.longitude || 0,
-          image: issue.imageUrl,
+          image: issue.image,
           reporter: issue.reportedBy?.name,
           votes: 0,
           createdAt: new Date(issue.createdAt).toLocaleDateString(),
@@ -299,7 +299,7 @@ export function IssuesMap() {
           categoryIcon: issue.category?.icon || '📋',
           lat: issue.location?.latitude || 0,
           lng: issue.location?.longitude || 0,
-          image: issue.imageUrl,
+          image: issue.image,
           reporter: issue.reportedBy?.name,
           votes: 0,
           createdAt: new Date(issue.createdAt).toLocaleDateString(),

@@ -5,31 +5,41 @@ const generateToken = require('../utils/generateToken');
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
-  const { name, email, password, mobileNumber, role } = req.body;
+  // SECURITY FIX #2: Destructure ONLY safe fields from body.
+  // 'role' is intentionally excluded — clients must never be able to
+  // self-assign a role. All new users are always created as 'user'.
+  const { name, email, password, mobileNumber } = req.body;
 
   try {
+    // Basic field validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+
     const userExists = await User.findOne({ email });
 
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // Role is always forced to 'user' server-side — never from req.body
     const user = await User.create({
       name,
       email,
       password,
       mobileNumber,
-      role: role || 'user'
+      role: 'user',  // SECURITY: hardcoded, never from client input
     });
 
     if (user) {
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       res.status(201).json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        points: user.points
+        points: user.points,
+        token
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -49,13 +59,14 @@ const loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await user.matchPassword(password))) {
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        points: user.points
+        points: user.points,
+        token
       });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
