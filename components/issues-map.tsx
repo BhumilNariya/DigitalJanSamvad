@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { MapPin, X, ThumbsUp, User } from 'lucide-react'
+import { MapPin, X, ThumbsUp, User, ArrowLeft, Filter, Layers, Globe } from 'lucide-react'
 import type { IssueStatus } from '@/lib/types'
 import { issuesApi } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
+import dynamic from 'next/dynamic'
+
+const MapInner = dynamic(() => import('./map-inner'), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center text-emerald-600 font-medium">Loading map...</div> })
 
 interface MapIssue {
   id: string
@@ -253,14 +256,17 @@ const statusLabels: Record<string, string> = {
 }
 
 export function IssuesMap() {
-  const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const markersRef = useRef<any[]>([])
-  const [filter, setFilter] = useState<FilterStatus>('all')
-  const [selectedIssue, setSelectedIssue] = useState<MapIssue | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [filter, setFilter] = useState<FilterStatus | 'all'>('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [mapView, setMapView] = useState<'street' | 'satellite'>('street')
   const [issuesData, setIssuesData] = useState<MapIssue[]>([])
   const socket = useSocket()
+
+  // Get unique categories for dropdown
+  const categories = useMemo(() => {
+    const cats = new Set(issuesData.map(i => i.category))
+    return Array.from(cats)
+  }, [issuesData])
   
   useEffect(() => {
     const fetchIssues = async () => {
@@ -323,226 +329,152 @@ export function IssuesMap() {
     };
   }, [socket]);
 
-  const filteredIssues = filter === 'all' 
-    ? issuesData 
-    : issuesData.filter(issue => {
-        if (filter === 'solved') return issue.status === 'solved' || issue.status === 'resolved'
-        return issue.status === filter
-      })
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current) return
-
-    // Load Leaflet CSS
-    const linkElement = document.createElement('link')
-    linkElement.rel = 'stylesheet'
-    linkElement.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(linkElement)
-
-    // Load Leaflet JS
-    const script = document.createElement('script')
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    script.onload = () => {
-      if (!mapRef.current || mapInstanceRef.current) return
-
-      const L = (window as any).L
-
-      // Initialize map
-      // Center on Ahmedabad, Gujarat
-      const map = L.map(mapRef.current).setView([23.0350, 72.5560], 12)
-      mapInstanceRef.current = map
-
-      // Add OpenStreetMap tiles
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(map)
-
-      setIsLoaded(true)
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
+  const filteredIssues = useMemo(() => {
+    return issuesData.filter(issue => {
+      // Handle status matching
+      let statusMatch = filter === 'all'
+      if (!statusMatch) {
+         const iStatus = issue.status as string
+         if (filter === 'pending') statusMatch = iStatus === 'pending'
+         if (filter === 'in-progress') statusMatch = iStatus === 'in-progress' || iStatus === 'in progress'
+         if (filter === 'solved') statusMatch = iStatus === 'solved' || iStatus === 'resolved'
+         if (filter === 'complete') statusMatch = iStatus === 'complete' || iStatus === 'closed'
       }
-    }
-  }, [])
 
-  // Update markers when filter changes
-  useEffect(() => {
-    if (!isLoaded || !mapInstanceRef.current) return
+      // Handle category matching
+      const categoryMatch = categoryFilter === 'all' || issue.category === categoryFilter
 
-    const L = (window as any).L
-    const map = mapInstanceRef.current
-
-    // Clear existing markers
-    markersRef.current.forEach(marker => map.removeLayer(marker))
-    markersRef.current = []
-
-    // Add markers for filtered issues
-    filteredIssues.forEach(issue => {
-      const color = statusColors[issue.status] || '#ef4444'
-      
-      const markerIcon = L.divIcon({
-        className: 'custom-marker',
-        html: `
-          <div style="
-            width: 24px;
-            height: 24px;
-            background-color: ${color};
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          "></div>
-        `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
-      })
-
-      const marker = L.marker([issue.lat, issue.lng], { icon: markerIcon })
-        .addTo(map)
-        .on('click', () => setSelectedIssue(issue))
-
-      markersRef.current.push(marker)
+      return statusMatch && categoryMatch
     })
-  }, [filteredIssues, isLoaded])
+  }, [issuesData, filter, categoryFilter])
 
-  // Update popup when selected issue changes
-  useEffect(() => {
-    if (!isLoaded || !mapInstanceRef.current || !selectedIssue) return
-
-    const L = (window as any).L
-    const map = mapInstanceRef.current
-
-    const popupContent = `
-      <div style="min-width: 280px; font-family: system-ui, sans-serif;">
-        <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
-          ${selectedIssue.image ? `<img src="${selectedIssue.image}" alt="" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;" />` : `<span style="font-size: 28px;">${selectedIssue.categoryIcon}</span>`}
-          <div>
-            <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #1f2937;">${selectedIssue.title}</h3>
-            <span style="font-size: 12px; color: #6b7280;">${selectedIssue.category}</span>
-          </div>
-        </div>
-        <p style="margin: 0 0 12px; font-size: 14px; color: #6b7280; line-height: 1.4;">${selectedIssue.description}</p>
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-          <span style="
-            display: inline-block;
-            padding: 4px 8px;
-            font-size: 11px;
-            font-weight: 600;
-            color: white;
-            background-color: ${statusColors[selectedIssue.status]};
-            border-radius: 4px;
-            text-transform: uppercase;
-          ">${statusLabels[selectedIssue.status]}</span>
-          <span style="font-size: 13px; color: #9ca3af;">${selectedIssue.createdAt}</span>
-        </div>
-        <div style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">
-          📍 ${selectedIssue.location}
-        </div>
-        <div style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: #6b7280; margin-bottom: 12px;">
-          <span>👤 ${selectedIssue.reporter}</span>
-          <span>👍 ${selectedIssue.votes} votes</span>
-        </div>
-        <a href="/issues/${selectedIssue.id}" style="color: #3b82f6; font-size: 14px; font-weight: 500; text-decoration: none;">View Details →</a>
-      </div>
-    `
-
-    const popup = L.popup()
-      .setLatLng([selectedIssue.lat, selectedIssue.lng])
-      .setContent(popupContent)
-      .openOn(map)
-
-    popup.on('remove', () => setSelectedIssue(null))
-  }, [selectedIssue, isLoaded])
-
-  const handleCenterMap = () => {
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([23.0350, 72.5560], 12)
-    }
-  }
+  // Map implementations now handled exclusively by MapInner component via React-Leaflet
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-foreground mb-2">Community Issues Map</h2>
-        <p className="text-muted-foreground">
-          Click on markers to view issue details. Issues are color-coded by status.
+    <div className="w-full flex flex-col items-center">
+      {/* Back Button */}
+      <div className="w-full flex justify-start mb-6 -ml-4">
+        <Button variant="outline" asChild className="gap-2 rounded-full px-5 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors">
+          <Link href="/issues">
+            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+          </Link>
+        </Button>
+      </div>
+
+      {/* Hero Title */}
+      <div className="text-center mb-10">
+        <div className="w-14 h-14 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border-[4px] border-emerald-100">
+          <MapPin className="w-6 h-6 text-white" />
+        </div>
+        <h1 className="text-3xl md:text-4xl font-bold text-emerald-800 mb-3 tracking-tight">Civic Issues Map</h1>
+        <p className="text-slate-600 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+          Explore civic issues across your region. Click markers for details, apply filters, and switch between map views.
         </p>
       </div>
 
-      {/* Filter Buttons */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('all')}
+      {/* Main Map Container Area */}
+      <div className="w-full max-w-5xl mx-auto space-y-3 relative p-1 pb-10">
+        
+        {/* Top Floating Filters & Triggers */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 relative z-10 w-full mb-3 px-1">
+          {/* Filters Block */}
+          <div className="bg-white rounded-full shadow-sm border border-slate-200 flex items-center p-1.5 gap-2 pr-4 transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-1.5 px-3 text-emerald-600 border-r border-slate-100 font-semibold text-sm">
+              <Filter className="w-4 h-4" /> Filters
+            </div>
+            
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="bg-transparent border-none text-sm font-medium text-slate-700 cursor-pointer focus:ring-0 outline-none pr-6"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="in-progress">In Progress</option>
+              <option value="solved">Resolved</option>
+              <option value="complete">Under Review</option>
+            </select>
+
+            <span className="text-slate-300">|</span>
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="bg-transparent border-none text-sm font-medium text-slate-700 cursor-pointer focus:ring-0 outline-none pr-6 max-w-[140px] truncate"
+            >
+              <option value="all">All Categories</option>
+              {categories.map((cat, i) => (
+                 <option key={i} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Map Layer Toggle Block */}
+          <div className="bg-white rounded-full shadow-sm border border-slate-200 flex items-center p-1.5 transition-shadow hover:shadow-md">
+            <div className="flex items-center gap-1.5 px-3 text-emerald-600 font-semibold text-sm mr-2">
+              <Layers className="w-4 h-4" /> View
+            </div>
+            
+            <div className="flex bg-slate-100 rounded-full p-0.5">
+              <button
+                onClick={() => setMapView('street')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm transition-all duration-200 ${
+                  mapView === 'street' 
+                    ? 'bg-emerald-500 text-white font-medium shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-800 font-medium'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" /> Street
+              </button>
+              <button
+                onClick={() => setMapView('satellite')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm transition-all duration-200 ${
+                  mapView === 'satellite' 
+                    ? 'bg-emerald-500 text-white font-medium shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-800 font-medium'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" /> Satellite
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Leaflet Map Layer */}
+        <div 
+          className="w-full relative shadow-lg rounded-2xl overflow-hidden ring-1 ring-emerald-50"
         >
-          Show All Issues
-        </Button>
-        <Button
-          variant={filter === 'pending' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('pending')}
-        >
-          Pending Only
-        </Button>
-        <Button
-          variant={filter === 'in-progress' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('in-progress')}
-        >
-          In Progress
-        </Button>
-        <Button
-          variant={filter === 'solved' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('solved')}
-        >
-          Solved
-        </Button>
-        <Button
-          variant={filter === 'complete' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter('complete')}
-        >
-          Complete
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleCenterMap}
-        >
-          <MapPin className="w-4 h-4 mr-1 text-destructive" />
-          Center Map
-        </Button>
+          {/* Inner Map Embed */}
+          <div 
+            className="w-full h-[500px] md:h-[600px] bg-emerald-50"
+            style={{ zIndex: 1 }} // Prevent leaflet popups from overlying sticky nav
+          >
+            <MapInner issues={filteredIssues} mapView={mapView} />
+          </div>
+        </div>
+
+        {/* Floating Counter Pill */}
+        <div className="absolute -bottom-4 left-1/2 justify-center transform -translate-x-1/2 z-20 pointer-events-none w-full flex">
+          <div className="bg-white border border-slate-200/80 shadow-sm px-6 py-2 rounded-full flex items-center gap-2 text-sm text-slate-500 pointer-events-auto backdrop-blur-md bg-white/90">
+            <MapPin className="w-4 h-4 text-emerald-500" />
+            Showing <span className="font-bold text-slate-800">{filteredIssues.length}</span> of <span className="font-bold text-slate-800">{issuesData.length}</span> issues
+          </div>
+        </div>
       </div>
 
-      {/* Map Container */}
-      <div 
-        ref={mapRef} 
-        className="w-full h-[400px] rounded-lg border border-border overflow-hidden bg-muted"
-        style={{ zIndex: 1 }}
-      />
-
-      {/* Legend */}
-      <div className="flex flex-wrap justify-center gap-6 mt-4 text-sm">
+      {/* Map Legend */}
+      <div className="flex flex-wrap items-center justify-center gap-6 mt-6 mb-4 text-sm text-slate-700 font-medium">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
-          <span className="text-muted-foreground">Pending</span>
+          <div className="w-3.5 h-3.5 rounded-full bg-red-500 shadow-sm border border-red-600"></div> Pending
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
-          <span className="text-muted-foreground">In Progress</span>
+          <div className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-sm border border-amber-600"></div> In Progress
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
-          <span className="text-muted-foreground">Solved</span>
+          <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm border border-emerald-600"></div> Resolved
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#3b82f6]" />
-          <span className="text-muted-foreground">Complete</span>
+          <div className="w-3.5 h-3.5 rounded-full bg-slate-500 shadow-sm border border-slate-600"></div> Closed
         </div>
       </div>
     </div>

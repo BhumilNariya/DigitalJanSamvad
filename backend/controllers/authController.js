@@ -53,12 +53,21 @@ const registerUser = async (req, res) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, type } = req.body;
 
   try {
     const user = await User.findOne({ email });
 
-    if (user && (await user.matchPassword(password))) {
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Role-based security check for staff/admin portal
+    if (type === 'staff' && user.role !== 'admin' && user.role !== 'staff') {
+      return res.status(403).json({ message: 'Not authorized for administrative access' });
+    }
+
+    if (await user.matchPassword(password)) {
       const token = generateToken(res, user._id);
       res.json({
         _id: user._id,

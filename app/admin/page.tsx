@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { adminApi } from '@/lib/api'
+import { useSocket } from '@/hooks/useSocket'
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -26,17 +27,33 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true)
-      const res = await adminApi.getDashboardStats()
-      if (res.success && res.data) {
-        setStats(res.data)
-      }
-      setLoading(false)
+  const socket = useSocket()
+
+  const fetchStats = async () => {
+    const res = await adminApi.getDashboardStats()
+    if (res.success && res.data) {
+      setStats(res.data)
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
     fetchStats()
   }, [])
+
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on('issueUpdated', fetchStats)
+    socket.on('issueDeleted', fetchStats)
+    socket.on('newIssue', fetchStats)
+
+    return () => {
+      socket.off('issueUpdated', fetchStats)
+      socket.off('issueDeleted', fetchStats)
+      socket.off('newIssue', fetchStats)
+    }
+  }, [socket])
 
   const statCards = stats ? [
     { label: 'Total', value: stats.totalIssues, icon: AlertCircle, color: 'text-foreground bg-muted/50', change: 'Issues reported' },

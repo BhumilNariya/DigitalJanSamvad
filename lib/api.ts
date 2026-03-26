@@ -152,6 +152,30 @@ export const adminApi = {
     } catch (error: any) {
       return { success: false, error: 'Failed to fetch admin issues' };
     }
+  },
+  async getUsers(): Promise<ApiResponse<User[]>> {
+    try {
+      const res = await apiClient.get('/admin/users');
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch users' };
+    }
+  },
+  async assignStaff(issueId: string, staffId: string): Promise<ApiResponse<Issue>> {
+    try {
+      const res = await apiClient.patch(`/admin/issues/${issueId}/assign`, { staffId });
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to assign staff' };
+    }
+  },
+  async deleteIssue(issueId: string): Promise<ApiResponse<null>> {
+    try {
+      await apiClient.delete(`/admin/issues/${issueId}`);
+      return { success: true, data: null };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to delete issue' };
+    }
   }
 };
 

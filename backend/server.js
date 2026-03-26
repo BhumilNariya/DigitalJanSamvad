@@ -17,6 +17,26 @@ initSocket(server);
 // Connect Database
 connectDB();
 
+// Seed Admin User
+const seedAdmin = async () => {
+  try {
+    const User = require('./models/User');
+    const adminExists = await User.findOne({ email: 'admin@jansamvad.in' });
+    if (!adminExists) {
+      await User.create({
+        name: 'Rajesh Kumar (Admin)',
+        email: 'admin@jansamvad.in',
+        password: 'admin123',
+        role: 'admin'
+      });
+      console.log('✅ Default Admin User Seeded (admin@jansamvad.in / admin123)');
+    }
+  } catch (err) {
+    console.error('❌ Error seeding admin user:', err.message);
+  }
+};
+seedAdmin();
+
 // SECURITY FIX #4: CORS origin loaded from environment variable (not hardcoded)
 // Set CLIENT_URL in .env for each environment (dev/staging/production)
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -46,6 +66,7 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use((err, req, res, next) => {
   console.error('[ERROR]', err.stack || err.message);
   res.status(err.status || 500).json({
+    success: false,
     message: err.message || 'Internal server error'
   });
 });

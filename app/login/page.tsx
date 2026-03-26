@@ -30,7 +30,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setIsSubmitting(true)
-    const result = await login({ email, password })
+    const result = await login({ email, password, type: isStaff ? 'staff' : 'citizen' })
     if (result.success) {
       // Redirect based on role stored in auth context — staff goes to /admin
       const stored = localStorage.getItem('jansamvad_user')
@@ -48,7 +48,7 @@ export default function LoginPage() {
     const creds = type === 'citizen' ? citizenDemo : staffDemo
     setEmail(creds.email)
     setPassword(creds.password)
-    const result = await login(creds)
+    const result = await login({ ...creds, type: type === 'staff' ? 'staff' : 'citizen' })
     if (result.success) {
       router.push(type === 'staff' ? '/admin' : '/profile')
     } else {

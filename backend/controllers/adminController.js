@@ -77,6 +77,7 @@ const getAdminIssues = async (req, res) => {
     const issues = await Issue.find({})
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -151,4 +152,53 @@ const updateIssueStatus = async (req, res) => {
   }
 };
 
-module.exports = { getDashboardStats, getUsers, getAdminIssues, updateIssueStatus };
+// @desc    Assign staff to an issue
+// @route   PATCH /api/admin/issues/:id/assign
+// @access  Private/Admin
+const assignIssue = async (req, res) => {
+  try {
+    const { staffId } = req.body;
+    const issue = await Issue.findById(req.params.id);
+
+    if (issue) {
+      issue.assignedTo = staffId;
+      if (issue.status === 'pending') {
+        issue.status = 'assigned';
+      }
+      const updatedIssue = await issue.save();
+      
+      const populatedIssue = await Issue.findById(updatedIssue._id)
+        .populate('category', 'name icon')
+        .populate('reportedBy', 'name email mobileNumber')
+        .populate('assignedTo', 'name email');
+
+      getIo().emit('issueUpdated', populatedIssue);
+      res.json(populatedIssue);
+    } else {
+      res.status(404).json({ message: 'Issue not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete an invalid issue
+// @route   DELETE /api/admin/issues/:id
+// @access  Private/Admin
+const deleteIssue = async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+
+    if (issue) {
+      await issue.deleteOne();
+      getIo().emit('issueDeleted', req.params.id);
+      res.json({ message: 'Issue removed correctly' });
+    } else {
+      res.status(404).json({ message: 'Issue not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getDashboardStats, getUsers, getAdminIssues, updateIssueStatus, assignIssue, deleteIssue };

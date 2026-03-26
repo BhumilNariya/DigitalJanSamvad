@@ -1,8 +1,10 @@
 // User Types
 export interface User {
-  id: string
+  _id?: string
+  id?: string
   name: string
   email: string
+  role?: string
   phone?: string
   location?: string
   avatar?: string
@@ -21,6 +23,7 @@ export interface AuthState {
 export interface LoginCredentials {
   email: string
   password: string
+  type?: string
 }
 
 export interface RegisterData {

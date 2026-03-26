@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from './status-badge'
@@ -26,26 +27,6 @@ interface IssueCardProps {
 }
 
 // ─── Subcomponents ────────────────────────────────────────────────────────
-
-const IssueImage = ({ src, alt }: { src?: string; alt: string }) => {
-  if (!src) {
-    return (
-      <div className="h-48 bg-muted flex flex-col items-center justify-center border-b border-border">
-        <ImageIcon className="w-10 h-10 text-muted-foreground/50 mb-2" />
-        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">No Image</span>
-      </div>
-    )
-  }
-  return (
-    <div className="h-48 overflow-hidden border-b border-border relative bg-muted">
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-      />
-    </div>
-  )
-}
 
 const IssueHeader = ({ title, status }: { title: string; status: any }) => (
   <div className="flex justify-between items-start gap-3 mb-2">
@@ -98,29 +79,43 @@ export function IssueCard({ issue }: IssueCardProps) {
   const locStr = typeof issue.location === 'object' ? issue.location.address : issue.location
   // Handle backend populated category vs string
   const catStr = typeof issue.category === 'object' ? issue.category.name : issue.category
+  // Only treat non-empty, non-whitespace strings as valid image URLs
+  const imageUrl = issue.imageUrl?.trim() || ''
+  const [imgError, setImgError] = useState(false)
 
   return (
     <Link href={`/issues/${issueId}`}>
       <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col group border-border/60 hover:border-primary/30 overflow-hidden bg-card">
-        
-        {issue.imageUrl ? (
-          <img src={issue.imageUrl} alt="Issue" className="h-48 w-full object-cover" />
+
+        {/* Image or placeholder */}
+        {imageUrl && !imgError ? (
+          <div className="h-48 overflow-hidden border-b border-border relative bg-muted">
+            <img
+              src={imageUrl}
+              alt={issue.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+              onError={() => setImgError(true)}
+            />
+          </div>
         ) : (
-          <div className="h-48 bg-muted flex items-center justify-center font-semibold text-muted-foreground">No Image</div>
+          <div className="h-48 bg-muted flex flex-col items-center justify-center border-b border-border">
+            <ImageIcon className="w-10 h-10 text-muted-foreground/50 mb-2" />
+            <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">No Image</span>
+          </div>
         )}
 
         <CardContent className="p-5 flex flex-col grow">
           <IssueHeader title={issue.title} status={issue.status} />
-          
+
           <IssueDescription text={issue.description} />
-          
+
           <IssueLocation location={locStr || 'Location not specified'} />
-          
+
           <IssueCategory name={catStr || 'General'} />
-          
+
           <IssueStats upvotes={issue.upvotes} comments={issue.comments} />
         </CardContent>
-        
+
       </Card>
     </Link>
   )

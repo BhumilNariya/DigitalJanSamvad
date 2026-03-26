@@ -37,7 +37,7 @@ export default function IssuesPage() {
             status: issue.status === 'in-progress' ? 'in-progress' : (issue.status === 'resolved' ? 'resolved' : 'open'),
             category: issue.category?.name || 'Other',
             upvotes: issue.upvotes || 0,
-            image: issue.image,
+            imageUrl: issue.imageUrl,
             comments: issue.comments || 0,
             createdAt: issue.createdAt || new Date()
         }));
@@ -58,6 +58,7 @@ export default function IssuesPage() {
           status: issue.status === 'in-progress' ? 'in-progress' : (issue.status === 'resolved' ? 'resolved' : 'open'),
           category: issue.category?.name || 'Other',
           upvotes: 0,
+          imageUrl: issue.imageUrl,
           comments: 0,
           createdAt: issue.createdAt || new Date()
       };
