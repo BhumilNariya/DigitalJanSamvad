@@ -1,85 +1,249 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
-import { adminApi, issuesApi } from '@/lib/api'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { adminApi } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
-import type { Issue, User } from '@/lib/types'
-import { MapPin, Search, Filter, AlertCircle, Edit, Trash2, CheckCircle2, MoreVertical, Zap } from 'lucide-react'
+import type { User } from '@/lib/types'
+import {
+  Search, AlertCircle, CheckCircle2, Zap, ChevronDown,
+  Eye, Shield, Wrench, XCircle, Lock, Trash2, Users,
+  Filter, RefreshCw, ClipboardList, User as UserIcon
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import Link from 'next/link'
+import dynamic from 'next/dynamic'
 
+// Lazy‑load the heavy detail modal
+const IssueDetailModal = dynamic(() => import('@/components/admin/IssueDetailModal'), { ssr: false })
+
+// ─── Status colour map ───────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-red-100 text-red-700 border-red-200',
-  assigned: 'bg-violet-100 text-violet-700 border-violet-200',
+  pending:       'bg-red-100 text-red-700 border-red-200',
+  verified:      'bg-blue-100 text-blue-700 border-blue-200',
+  assigned:      'bg-violet-100 text-violet-700 border-violet-200',
   'in-progress': 'bg-amber-100 text-amber-700 border-amber-200',
-  resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  closed: 'bg-slate-100 text-slate-700 border-slate-200',
+  resolved:      'bg-emerald-100 text-emerald-700 border-emerald-200',
+  closed:        'bg-slate-100 text-slate-700 border-slate-200',
+  rejected:      'bg-rose-100 text-rose-700 border-rose-200',
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  assigned: 'Assigned',
+  pending:       'Pending',
+  verified:      'Verified',
+  assigned:      'Assigned',
   'in-progress': 'In Progress',
-  resolved: 'Resolved',
-  closed: 'Closed',
+  resolved:      'Resolved',
+  closed:        'Closed',
+  rejected:      'Rejected',
 }
 
+// ─── Small reusable status badge ────────────────────────────────────────────
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase border ${STATUS_COLORS[status] || STATUS_COLORS.pending}`}>
+      {STATUS_LABELS[status] || status}
+    </span>
+  )
+}
+
+// ─── Priority badge ──────────────────────────────────────────────────────────
+function PriorityBadge({ priority }: { priority: string }) {
+  const cls =
+    priority === 'high'   ? 'bg-orange-100 text-orange-700' :
+    priority === 'medium' ? 'bg-blue-100 text-blue-700'     :
+                            'bg-slate-100 text-slate-600'
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize ${cls}`}>
+      {priority || 'medium'}
+    </span>
+  )
+}
+
+// ─── Per‑row actions dropdown ────────────────────────────────────────────────
+function ActionsMenu({
+  issue,
+  staffUsers,
+  updatingId,
+  onStatus,
+  onAssign,
+  onDelete,
+  onViewDetails,
+}: {
+  issue: any
+  staffUsers: any[]
+  updatingId: string | null
+  onStatus:  (id: string, status: string) => void
+  onAssign:  (id: string, staffId: string) => void
+  onDelete:  (id: string) => void
+  onViewDetails: (issue: any) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const s = issue.status || 'pending'
+  const busy = updatingId === issue._id
+
+  const close = () => setOpen(false)
+
+  return (
+    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false) }}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 gap-1 shadow-sm"
+        onClick={() => setOpen(v => !v)}
+        disabled={busy}
+      >
+        {busy ? <Spinner className="w-4 h-4" /> : <>Actions <ChevronDown className="w-3.5 h-3.5" /></>}
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-52 z-30 bg-white dark:bg-slate-900 border border-border rounded-xl shadow-xl py-1 text-sm animate-in fade-in slide-in-from-top-1">
+
+          {/* View Details */}
+          <button
+            className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => { onViewDetails(issue); close() }}
+          >
+            <Eye className="w-4 h-4 text-slate-500" /> View Details
+          </button>
+
+          <div className="border-t border-border my-1" />
+
+          {/* Verify */}
+          {s === 'pending' && (
+            <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50 text-blue-700 transition-colors"
+              onClick={() => { onStatus(issue._id, 'verified'); close() }}>
+              <Shield className="w-4 h-4" /> Verify Issue
+            </button>
+          )}
+
+          {/* Assign staff sub-select */}
+          {s !== 'resolved' && s !== 'closed' && s !== 'rejected' && staffUsers.length > 0 && (
+            <div className="px-3 py-1.5">
+              <select
+                className="w-full text-xs h-8 px-2 rounded-md border border-input bg-background"
+                onChange={(e) => { if (e.target.value) { onAssign(issue._id, e.target.value); close(); e.target.value = '' } }}
+                defaultValue=""
+              >
+                <option value="" disabled>👤 Assign Staff…</option>
+                {staffUsers.map((u: any) => (
+                  <option key={u._id} value={u._id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* In Progress */}
+          {(s === 'pending' || s === 'verified' || s === 'assigned') && (
+            <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50 text-amber-700 transition-colors"
+              onClick={() => { onStatus(issue._id, 'in-progress'); close() }}>
+              <Wrench className="w-4 h-4" /> Mark In Progress
+            </button>
+          )}
+
+          {/* Resolve */}
+          {s === 'in-progress' && (
+            <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-emerald-50 text-emerald-700 transition-colors"
+              onClick={() => { onStatus(issue._id, 'resolved'); close() }}>
+              <CheckCircle2 className="w-4 h-4" /> Mark Resolved
+            </button>
+          )}
+
+          {/* Close */}
+          {s === 'resolved' && (
+            <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 text-slate-600 transition-colors"
+              onClick={() => { onStatus(issue._id, 'closed'); close() }}>
+              <Lock className="w-4 h-4" /> Close Issue
+            </button>
+          )}
+
+          {/* Reject */}
+          {s !== 'rejected' && s !== 'closed' && s !== 'resolved' && (
+            <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-rose-50 text-rose-600 transition-colors"
+              onClick={() => { onStatus(issue._id, 'rejected'); close() }}>
+              <XCircle className="w-4 h-4" /> Reject Report
+            </button>
+          )}
+
+          <div className="border-t border-border my-1" />
+
+          {/* Notes shortcut */}
+          <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            onClick={() => { onViewDetails(issue); close() }}>
+            <ClipboardList className="w-4 h-4 text-slate-500" /> Add Note
+          </button>
+
+          {/* Delete */}
+          <button className="w-full text-left flex items-center gap-2.5 px-3 py-2 hover:bg-red-50 text-red-600 transition-colors"
+            onClick={() => { onDelete(issue._id); close() }}>
+            <Trash2 className="w-4 h-4" /> Delete Report
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
 export default function AdminIssuesPage() {
-  const [issues, setIssues] = useState<any[]>([])
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
+  const [issues, setIssues]         = useState<any[]>([])
+  const [users, setUsers]           = useState<any[]>([])
+  const [loading, setLoading]       = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [selectedIssue, setSelectedIssue] = useState<any | null>(null)
+  const [totalIssues, setTotalIssues] = useState(0)
 
   const socket = useSocket()
 
-  const fetchData = async () => {
+  // ── Fetch all data ─────────────────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
     setLoading(true)
     const [issuesRes, usersRes] = await Promise.all([
-      adminApi.getIssues(),
-      adminApi.getUsers()
+      adminApi.getIssues({ limit: 100 }),
+      adminApi.getUsers(),
     ])
-    
-    // The admin route GET /api/admin/issues returns { issues, totalIssues, totalPages, currentPage }
     if (issuesRes.success && issuesRes.data) {
-      setIssues((issuesRes.data as any).issues || issuesRes.data)
+      const payload = issuesRes.data as any
+      const list = payload.issues ?? issuesRes.data
+      setIssues(Array.isArray(list) ? list : [])
+      setTotalIssues(payload.totalIssues ?? list.length)
     }
     if (usersRes.success && usersRes.data) {
-      setUsers(usersRes.data)
+      setUsers(usersRes.data as any[])
     }
     setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchData()
   }, [])
 
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // ── Real-time socket ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return
-
-    // Realtime integration - seamless injection
-    const handleUpdates = () => fetchData()
-
-    socket.on('newIssue', handleUpdates)
-    socket.on('issueUpdated', handleUpdates)
-    socket.on('issueDeleted', handleUpdates)
-
+    const refresh = () => fetchData()
+    socket.on('newIssue', refresh)
+    socket.on('issueUpdated', refresh)
+    socket.on('issueDeleted', refresh)
     return () => {
-      socket.off('newIssue', handleUpdates)
-      socket.off('issueUpdated', handleUpdates)
-      socket.off('issueDeleted', handleUpdates)
+      socket.off('newIssue', refresh)
+      socket.off('issueUpdated', refresh)
+      socket.off('issueDeleted', refresh)
     }
-  }, [socket])
+  }, [socket, fetchData])
 
-  // Admin Actions execution handlers
+  // ── Refresh selected issue when list updates ───────────────────────────────
+  useEffect(() => {
+    if (selectedIssue && issues.length > 0) {
+      const updated = issues.find(i => i._id === selectedIssue._id)
+      if (updated) setSelectedIssue(updated)
+    }
+  }, [issues]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Action handlers ────────────────────────────────────────────────────────
   const handleStatusChange = async (id: string, status: string) => {
     setUpdatingId(id)
-    await issuesApi.updateStatus(id, status)
+    await adminApi.updateIssueStatus(id, status)
     await fetchData()
     setUpdatingId(null)
   }
@@ -92,225 +256,227 @@ export default function AdminIssuesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this issue and all connected media/comments?')) return
+    if (!confirm('Permanently delete this issue and all its data? This cannot be undone.')) return
     setUpdatingId(id)
     await adminApi.deleteIssue(id)
     await fetchData()
     setUpdatingId(null)
   }
 
-  const filteredIssues = useMemo(() => {
-    return issues.filter(issue => {
-      const matchesSearch = issue.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            issue._id.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesStatus = statusFilter === 'all' || issue.status === statusFilter
-      const matchesCategory = categoryFilter === 'all' || issue.category?.name === categoryFilter
-      return matchesSearch && matchesStatus && matchesCategory
-    })
-  }, [issues, searchQuery, statusFilter, categoryFilter])
+  const handleViewDetails = (issue: any) => setSelectedIssue(issue)
+
+  // ── Filtering ──────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => issues.filter(issue => {
+    const q = searchQuery.toLowerCase()
+    const matchSearch =
+      issue.title?.toLowerCase().includes(q) ||
+      issue._id?.toLowerCase().includes(q) ||
+      issue.location?.toLowerCase().includes(q) ||
+      issue.reportedBy?.name?.toLowerCase().includes(q)
+    const matchStatus = statusFilter === 'all' || issue.status === statusFilter
+    return matchSearch && matchStatus
+  }), [issues, searchQuery, statusFilter])
 
   const staffUsers = users.filter(u => u.role === 'staff' || u.role === 'admin')
 
+  // ── Summary counts ─────────────────────────────────────────────────────────
+  const counts = useMemo(() => ({
+    pending:      issues.filter(i => i.status === 'pending').length,
+    verified:     issues.filter(i => i.status === 'verified').length,
+    assigned:     issues.filter(i => i.status === 'assigned').length,
+    'in-progress':issues.filter(i => i.status === 'in-progress').length,
+    resolved:     issues.filter(i => i.status === 'resolved').length,
+    rejected:     issues.filter(i => i.status === 'rejected').length,
+  }), [issues])
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      {/* Header */}
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-1">Issue Management</h1>
-          <p className="text-muted-foreground">Administer and triage community civic reports securely.</p>
+          <p className="text-muted-foreground text-sm">Review, triage and resolve all citizen-reported civic issues.</p>
         </div>
-        
-        {/* Realtime Live Pulse */}
-        <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2 w-fit">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-emerald-700 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1.5">
-            <Zap className="w-4 h-4" /> Live WebSockets
-          </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+          <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-emerald-700 dark:text-emerald-400 text-sm font-semibold flex items-center gap-1.5">
+              <Zap className="w-4 h-4" /> Live Updates
+            </span>
+            <span className="text-xs text-muted-foreground">{totalIssues} total</span>
+          </div>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-border shadow-sm">
+      {/* ── Status quick-filter pills ────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'all',          label: 'All',         count: totalIssues,          color: 'bg-slate-100 hover:bg-slate-200 text-slate-700' },
+          { key: 'pending',      label: 'Pending',     count: counts.pending,       color: 'bg-red-100 hover:bg-red-200 text-red-700' },
+          { key: 'verified',     label: 'Verified',    count: counts.verified,      color: 'bg-blue-100 hover:bg-blue-200 text-blue-700' },
+          { key: 'assigned',     label: 'Assigned',    count: counts.assigned,      color: 'bg-violet-100 hover:bg-violet-200 text-violet-700' },
+          { key: 'in-progress',  label: 'In Progress', count: counts['in-progress'],color: 'bg-amber-100 hover:bg-amber-200 text-amber-700' },
+          { key: 'resolved',     label: 'Resolved',    count: counts.resolved,      color: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700' },
+          { key: 'rejected',     label: 'Rejected',    count: counts.rejected,      color: 'bg-rose-100 hover:bg-rose-200 text-rose-700' },
+        ].map(pill => (
+          <button
+            key={pill.key}
+            onClick={() => setStatusFilter(pill.key)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              statusFilter === pill.key
+                ? 'ring-2 ring-offset-1 ring-primary border-primary/30 ' + pill.color
+                : 'border-transparent ' + pill.color
+            }`}
+          >
+            {pill.label}
+            <span className="bg-white/60 rounded-full px-1.5 py-0.5 text-[10px] font-bold">{pill.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Search bar ───────────────────────────────────────────────────────── */}
+      <div className="flex gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by Report ID or Title..." 
+          <Input
+            placeholder="Search by ID, title, location or reporter name…"
             className="pl-9"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
-        <select 
-          className="h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="assigned">Assigned</option>
-          <option value="in-progress">In Progress</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
-        </select>
+        {(searchQuery || statusFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setStatusFilter('all') }}>
+            <Filter className="w-4 h-4 mr-1" /> Clear
+          </Button>
+        )}
+        <span className="self-center text-xs text-muted-foreground whitespace-nowrap">
+          {filtered.length} / {totalIssues} issues
+        </span>
       </div>
 
-      {/* Table Container */}
-      <div className="bg-white border text-sm border-border rounded-xl shadow-sm overflow-hidden min-h-[400px]">
+      {/* ── Table ─────────────────────────────────────────────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 border border-border rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
+          <table className="w-full text-left border-collapse text-sm whitespace-nowrap">
             <thead>
-              <tr className="bg-slate-50 border-b border-border text-slate-500 font-medium tracking-wide">
-                <th className="px-5 py-4">Report ID</th>
-                <th className="px-5 py-4 min-w-[200px]">Title & Category</th>
-                <th className="px-5 py-4">Priority</th>
-                <th className="px-5 py-4">Status & Assignment</th>
-                <th className="px-5 py-4">Reported Date</th>
-                <th className="px-5 py-4 text-center">Actions / Resolution</th>
+              <tr className="bg-slate-50 dark:bg-slate-800 border-b border-border text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+                <th className="px-5 py-3.5">Report ID</th>
+                <th className="px-5 py-3.5 min-w-[220px]">Title &amp; Category</th>
+                <th className="px-5 py-3.5">Location</th>
+                <th className="px-5 py-3.5">Priority</th>
+                <th className="px-5 py-3.5">Status</th>
+                <th className="px-5 py-3.5">Assigned To</th>
+                <th className="px-5 py-3.5">Date Reported</th>
+                <th className="px-5 py-3.5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && issues.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-14 text-center text-muted-foreground">
                     <Spinner className="w-6 h-6 mx-auto mb-2 text-primary" />
-                    Loading issues stack...
+                    Loading issues…
                   </td>
                 </tr>
-              ) : filteredIssues.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                    No civic issues match your current filters.
+                  <td colSpan={8} className="px-5 py-14 text-center text-muted-foreground">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                    No issues match your current filters.
                   </td>
                 </tr>
               ) : (
-                filteredIssues.map((issue) => (
-                  <tr key={issue._id} className="hover:bg-slate-50/50 transition-colors">
+                filtered.map(issue => (
+                  <tr
+                    key={issue._id}
+                    className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors ${updatingId === issue._id ? 'opacity-60 pointer-events-none' : ''}`}
+                  >
                     {/* Report ID */}
-                    <td className="px-5 py-4">
-                      <span className="font-mono text-xs font-semibold px-2 py-1 bg-slate-100 rounded-md text-slate-600">
-                        #{issue._id.slice(-6).toUpperCase()}
-                      </span>
+                    <td className="px-5 py-3.5">
+                      <button
+                        onClick={() => handleViewDetails(issue)}
+                        className="font-mono text-xs font-semibold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-slate-600 dark:text-slate-300 hover:bg-primary/10 hover:text-primary transition-colors"
+                        title="Click to view details"
+                      >
+                        #{(issue._id || '').slice(-6).toUpperCase()}
+                      </button>
                     </td>
 
                     {/* Title & Category */}
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-900 max-w-[250px] truncate" title={issue.title}>
+                    <td className="px-5 py-3.5">
+                      <button
+                        className="font-semibold text-slate-900 dark:text-slate-100 max-w-[240px] truncate block text-left hover:text-primary transition-colors"
+                        title={issue.title}
+                        onClick={() => handleViewDetails(issue)}
+                      >
                         {issue.title}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                      </button>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <span>{issue.category?.icon || '📋'}</span>
                         {issue.category?.name || 'Uncategorized'}
+                        {(issue.adminNotes?.length > 0) && (
+                          <span className="ml-1 flex items-center gap-0.5 text-indigo-500">
+                            <ClipboardList className="w-3 h-3" /> {issue.adminNotes.length}
+                          </span>
+                        )}
                       </div>
                     </td>
 
-                    {/* Priority */}
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold capitalize ${
-                        issue.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                        issue.priority === 'medium' ? 'bg-blue-100 text-blue-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {issue.priority || 'Medium'}
+                    {/* Location */}
+                    <td className="px-5 py-3.5 max-w-[160px]">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 truncate block" title={issue.location}>
+                        {issue.location || '—'}
                       </span>
                     </td>
 
-                    {/* Status & Assignment */}
-                    <td className="px-5 py-4">
-                      <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase border ${STATUS_COLORS[issue.status] || STATUS_COLORS.pending}`}>
-                        {STATUS_LABELS[issue.status] || issue.status}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1.5 flex items-center gap-1">
-                        <UsersIcon className="w-3.5 h-3.5" /> 
-                        {issue.assignedTo ? <span className="font-medium text-indigo-600">{issue.assignedTo.name}</span> : 'Unassigned'}
-                      </div>
+                    {/* Priority */}
+                    <td className="px-5 py-3.5">
+                      <PriorityBadge priority={issue.priority} />
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={issue.status || 'pending'} />
+                    </td>
+
+                    {/* Assigned To */}
+                    <td className="px-5 py-3.5">
+                      {issue.assignedTo ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-violet-600">
+                          <UserIcon className="w-3.5 h-3.5" /> {issue.assignedTo.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Unassigned</span>
+                      )}
                     </td>
 
                     {/* Date */}
-                    <td className="px-5 py-4 text-slate-600">
+                    <td className="px-5 py-3.5 text-slate-500 text-xs">
                       {new Date(issue.createdAt).toLocaleDateString(undefined, {
-                        year: 'numeric', month: 'short', day: 'numeric'
+                        year: 'numeric', month: 'short', day: 'numeric',
                       })}
                     </td>
 
-                    {/* Actions Panel */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        {updatingId === issue._id ? (
-                          <Spinner className="w-5 h-5 text-primary" />
-                        ) : (
-                          <>
-                            {/* View Full */}
-                            <Link href={`/issues/${issue._id}`}>
-                              <Button variant="outline" size="sm" className="h-8 shadow-sm">
-                                View
-                              </Button>
-                            </Link>
-
-                            {/* Dropdown Assignment Selector (Native Select for robust functionality) */}
-                            {staffUsers.length > 0 && issue.status !== 'resolved' && issue.status !== 'closed' && (
-                              <select
-                                className="h-8 px-2 text-xs font-medium rounded-md border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-                                onChange={(e) => {
-                                  if (e.target.value) handleAssignStaff(issue._id, e.target.value);
-                                  e.target.value = ''; // Reset select appearance after action
-                                }}
-                                defaultValue=""
-                              >
-                                <option value="" disabled>Assign Staff</option>
-                                {staffUsers.map(staff => (
-                                  <option key={staff._id} value={staff._id}>{staff.name}</option>
-                                ))}
-                              </select>
-                            )}
-
-                            {/* Rapid Action Buttons */}
-                            {(issue.status === 'pending' || issue.status === 'assigned') && (
-                              <Button 
-                                variant="secondary" 
-                                size="sm" 
-                                className="h-8 shadow-sm bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800"
-                                onClick={() => handleStatusChange(issue._id, 'in-progress')}
-                              >
-                                In Progress
-                              </Button>
-                            )}
-                            
-                            {issue.status === 'in-progress' && (
-                              <Button 
-                                variant="default" 
-                                size="sm" 
-                                className="h-8 shadow-sm bg-emerald-600 hover:bg-emerald-700"
-                                onClick={() => handleStatusChange(issue._id, 'resolved')}
-                              >
-                                <CheckCircle2 className="w-4 h-4 mr-1.5" /> Resolve
-                              </Button>
-                            )}
-                            
-                            {issue.status === 'resolved' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 shadow-sm text-slate-600 border-slate-300"
-                                onClick={() => handleStatusChange(issue._id, 'closed')}
-                              >
-                                Close Issue
-                              </Button>
-                            )}
-
-                            {/* Destructive Delete */}
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => handleDelete(issue._id)}
-                              title="Delete Invalid Issue"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                    {/* Actions */}
+                    <td className="px-5 py-3.5 text-right">
+                      <ActionsMenu
+                        issue={issue}
+                        staffUsers={staffUsers}
+                        updatingId={updatingId}
+                        onStatus={handleStatusChange}
+                        onAssign={handleAssignStaff}
+                        onDelete={handleDelete}
+                        onViewDetails={handleViewDetails}
+                      />
                     </td>
                   </tr>
                 ))
@@ -319,18 +485,16 @@ export default function AdminIssuesPage() {
           </table>
         </div>
       </div>
-    </div>
-  )
-}
 
-// Inline fallback lucide import placeholder if standard user icon isn't loaded
-function UsersIcon(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
+      {/* ── Detail Modal ──────────────────────────────────────────────────────── */}
+      {selectedIssue && (
+        <IssueDetailModal
+          issue={selectedIssue}
+          staffUsers={staffUsers}
+          onClose={() => setSelectedIssue(null)}
+          onRefresh={fetchData}
+        />
+      )}
+    </div>
   )
 }

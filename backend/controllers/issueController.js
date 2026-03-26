@@ -99,11 +99,47 @@ const createIssue = async (req, res) => {
     }
 
     // ── Save issue to MongoDB ──────────────────────────────────────────────
+    // Parse location: frontend sends separate latitude/longitude fields OR a location object
+    let locationStr = '';
+    let lat = null;
+    let lng = null;
+
+    if (req.body.latitude) lat = parseFloat(req.body.latitude);
+    if (req.body.longitude) lng = parseFloat(req.body.longitude);
+    if (req.body.address) locationStr = req.body.address.trim();
+
+    // If location sent as object (e.g. from older clients)
+    if (!locationStr && typeof location === 'object' && location !== null) {
+      locationStr = location.address || '';
+      lat = (lat ?? parseFloat(location.lat || location.latitude)) || null;
+      lng = (lng ?? parseFloat(location.lng || location.longitude)) || null;
+    } else if (!locationStr && typeof location === 'string') {
+      locationStr = location.trim();
+    }
+
+    // Geocode if address known but coords missing
+    if (locationStr && (!lat || !lng)) {
+      try {
+        const response = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+          params: { q: locationStr, format: 'json', limit: 1 },
+          headers: { 'User-Agent': 'SamvadApp/1.0' }
+        });
+        if (response.data && response.data.length > 0) {
+          lat = parseFloat(response.data[0].lat);
+          lng = parseFloat(response.data[0].lon);
+        }
+      } catch (err) {
+        console.error('[createIssue] Geocoding failed:', err.message);
+      }
+    }
+
     const issue = new Issue({
       title: title.trim(),
       description: description.trim(),
       category,
-      location: newLocation,
+      location: locationStr || undefined,
+      latitude: lat || undefined,
+      longitude: lng || undefined,
       imageUrl,
       reportedBy: req.user._id,
     });

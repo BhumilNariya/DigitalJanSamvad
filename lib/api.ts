@@ -145,12 +145,20 @@ export const adminApi = {
       return { success: false, error: 'Failed to fetch admin stats' };
     }
   },
-  async getIssues(): Promise<ApiResponse<Issue[]>> {
+  async getIssues(params?: any): Promise<ApiResponse<any>> {
     try {
-      const res = await apiClient.get('/admin/issues');
+      const res = await apiClient.get('/admin/issues', { params });
       return { success: true, data: res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to fetch admin issues' };
+    }
+  },
+  async updateIssueStatus(issueId: string, status: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await apiClient.patch(`/admin/issues/${issueId}/status`, { status });
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to update status' };
     }
   },
   async getUsers(): Promise<ApiResponse<User[]>> {
@@ -175,6 +183,22 @@ export const adminApi = {
       return { success: true, data: null };
     } catch (error: any) {
       return { success: false, error: 'Failed to delete issue' };
+    }
+  },
+  async addAdminNote(issueId: string, text: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await apiClient.patch(`/admin/issues/${issueId}/note`, { text });
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to add note' };
+    }
+  },
+  async getIssueById(issueId: string): Promise<ApiResponse<any>> {
+    try {
+      const res = await apiClient.get(`/admin/issues/${issueId}`);
+      return { success: true, data: res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch issue details' };
     }
   }
 };

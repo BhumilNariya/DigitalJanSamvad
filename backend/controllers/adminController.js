@@ -10,18 +10,33 @@ const getDashboardStats = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalIssues = await Issue.countDocuments();
-    const resolvedIssues = await Issue.countDocuments({ status: 'resolved' });
-    const pendingIssues = await Issue.countDocuments({ status: 'pending' });
-    const inProgressIssues = await Issue.countDocuments({ status: 'in-progress' });
-    const assignedIssues = await Issue.countDocuments({ status: 'assigned' });
-    const highPriorityIssues = await Issue.countDocuments({ priority: 'high' });
+
+    const [
+      pendingIssues,
+      verifiedIssues,
+      assignedIssues,
+      inProgressIssues,
+      resolvedIssues,
+      closedIssues,
+      rejectedIssues,
+      highPriorityIssues,
+    ] = await Promise.all([
+      Issue.countDocuments({ status: 'pending' }),
+      Issue.countDocuments({ status: 'verified' }),
+      Issue.countDocuments({ status: 'assigned' }),
+      Issue.countDocuments({ status: 'in-progress' }),
+      Issue.countDocuments({ status: 'resolved' }),
+      Issue.countDocuments({ status: 'closed' }),
+      Issue.countDocuments({ status: 'rejected' }),
+      Issue.countDocuments({ priority: 'high' }),
+    ]);
 
     // Category breakdown for charts
     const categoryBreakdown = await Issue.aggregate([
       { $group: { _id: '$category', count: { $sum: 1 } } },
       { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'cat' } },
       { $project: { name: { $arrayElemAt: ['$cat.name', 0] }, count: 1 } },
-      { $sort: { count: -1 } }
+      { $sort: { count: -1 } },
     ]);
 
     // Last 7 days issue counts
@@ -29,20 +44,28 @@ const getDashboardStats = async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentIssues = await Issue.aggregate([
       { $match: { createdAt: { $gte: sevenDaysAgo } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
-      { $sort: { _id: 1 } }
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
     ]);
 
     res.json({
       totalUsers,
       totalIssues,
-      resolvedIssues,
       pendingIssues,
-      inProgressIssues,
+      verifiedIssues,
       assignedIssues,
+      inProgressIssues,
+      resolvedIssues,
+      closedIssues,
+      rejectedIssues,
       highPriorityIssues,
       categoryBreakdown,
-      recentIssues
+      recentIssues,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -61,23 +84,27 @@ const getUsers = async (req, res) => {
   }
 };
 
-// @desc    Get all issues (admin view) with pagination
-// @route   GET /api/admin/issues?page=1&limit=10
+// @desc    Get all issues (admin view) with pagination + optional status filter
+// @route   GET /api/admin/issues?page=1&limit=20&status=pending
 // @access  Private/Admin
 const getAdminIssues = async (req, res) => {
   try {
-    // FIX #8: Pagination — prevents loading all issues into memory at once
-    // Usage: GET /api/admin/issues?page=1&limit=10
-    const page = Math.max(parseInt(req.query.page) || 1, 1);       // min page = 1
-    const limit = Math.min(parseInt(req.query.limit) || 10, 100);  // max 100 per page
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
-    const totalIssues = await Issue.countDocuments();
+    const filter = {};
+    if (req.query.status && req.query.status !== 'all') {
+      filter.status = req.query.status;
+    }
 
-    const issues = await Issue.find({})
+    const totalIssues = await Issue.countDocuments(filter);
+
+    const issues = await Issue.find(filter)
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
+      .populate('adminNotes.createdBy', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -93,60 +120,89 @@ const getAdminIssues = async (req, res) => {
   }
 };
 
+// @desc    Get single issue by ID (admin view with all fields populated)
+// @route   GET /api/admin/issues/:id
+// @access  Private/Admin
+const getAdminIssueById = async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
+      .populate('adminNotes.createdBy', 'name');
 
-// @desc    Update issue status
+    if (!issue) {
+      return res.status(404).json({ message: 'Issue not found' });
+    }
+    res.json(issue);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update issue status (and optionally category / priority)
 // @route   PATCH /api/admin/issues/:id/status
 // @access  Private/Admin
 const updateIssueStatus = async (req, res) => {
   try {
     const { status, category, priority } = req.body;
-    
+
     const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ message: 'Issue not found' });
 
-    if (issue) {
-      const oldStatus = issue.status;
-      
-      issue.status = status || issue.status;
-      if (category) issue.category = category;
-      if (priority) issue.priority = priority;
-      
-      const updatedIssue = await issue.save();
+    const oldStatus = issue.status;
 
-      // If status changed to resolved, award +20 points
-      if (oldStatus !== 'resolved' && updatedIssue.status === 'resolved') {
-        const user = await User.findById(issue.reportedBy);
-        if (user) {
-          user.points += 20;
-          await user.save();
-          const leaderboard = await User.find({}).sort({ points: -1 }).limit(10).select('name avatar points issuesReported');
-          getIo().emit('leaderboardUpdated', leaderboard);
-        }
+    issue.status = status || issue.status;
+    if (category) issue.category = category;
+    if (priority) issue.priority = priority;
+
+    const updatedIssue = await issue.save();
+
+    // Award +20 points to reporter when resolved
+    if (oldStatus !== 'resolved' && updatedIssue.status === 'resolved') {
+      const user = await User.findById(issue.reportedBy);
+      if (user) {
+        user.points += 20;
+        await user.save();
+        const leaderboard = await User.find({})
+          .sort({ points: -1 })
+          .limit(10)
+          .select('name avatar points issuesReported');
+        getIo().emit('leaderboardUpdated', leaderboard);
       }
-
-      // Populate for socket emit
-      const populatedIssue = await Issue.findById(updatedIssue._id)
-        .populate('category', 'name icon')
-        .populate('reportedBy', 'name');
-
-      // Create notification for the reporter about status change
-      const statusLabels = { pending: 'Pending', assigned: 'Assigned', 'in-progress': 'In Progress', resolved: 'Resolved' };
-      const notification = await Notification.create({
-        recipient: issue.reportedBy,
-        type: 'status_change',
-        message: `Your issue "${issue.title}" status changed to ${statusLabels[updatedIssue.status] || updatedIssue.status}`,
-        issueId: issue._id,
-      });
-
-      // Emit targeted notification to reporter's room
-      getIo().to(issue.reportedBy.toString()).emit('newNotification', notification);
-
-      // Broadcast issue updated to all
-      getIo().emit('issueUpdated', populatedIssue);
-
-      res.json(populatedIssue);
-    } else {
-      res.status(404).json({ message: 'Issue not found' });
     }
+
+    // Populate for socket emit
+    const populatedIssue = await Issue.findById(updatedIssue._id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
+      .populate('adminNotes.createdBy', 'name');
+
+    // Notification labels for all 7 workflow statuses
+    const statusLabels = {
+      pending: 'Pending Review',
+      verified: 'Verified',
+      assigned: 'Assigned to Staff',
+      'in-progress': 'In Progress',
+      resolved: 'Resolved',
+      closed: 'Closed',
+      rejected: 'Rejected',
+    };
+
+    const notification = await Notification.create({
+      recipient: issue.reportedBy,
+      type: 'status_change',
+      message: `Your issue "${issue.title}" status changed to ${statusLabels[updatedIssue.status] || updatedIssue.status}`,
+      issueId: issue._id,
+    });
+
+    // Emit targeted notification to reporter's room
+    getIo().to(issue.reportedBy.toString()).emit('newNotification', notification);
+    // Broadcast issue updated to all
+    getIo().emit('issueUpdated', populatedIssue);
+
+    res.json(populatedIssue);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -160,23 +216,57 @@ const assignIssue = async (req, res) => {
     const { staffId } = req.body;
     const issue = await Issue.findById(req.params.id);
 
-    if (issue) {
-      issue.assignedTo = staffId;
-      if (issue.status === 'pending') {
-        issue.status = 'assigned';
-      }
-      const updatedIssue = await issue.save();
-      
-      const populatedIssue = await Issue.findById(updatedIssue._id)
-        .populate('category', 'name icon')
-        .populate('reportedBy', 'name email mobileNumber')
-        .populate('assignedTo', 'name email');
+    if (!issue) return res.status(404).json({ message: 'Issue not found' });
 
-      getIo().emit('issueUpdated', populatedIssue);
-      res.json(populatedIssue);
-    } else {
-      res.status(404).json({ message: 'Issue not found' });
+    issue.assignedTo = staffId;
+    // Only auto-advance if still at pending/verified
+    if (issue.status === 'pending' || issue.status === 'verified') {
+      issue.status = 'assigned';
     }
+    const updatedIssue = await issue.save();
+
+    const populatedIssue = await Issue.findById(updatedIssue._id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
+      .populate('adminNotes.createdBy', 'name');
+
+    getIo().emit('issueUpdated', populatedIssue);
+    res.json(populatedIssue);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Add an internal admin note to an issue
+// @route   PATCH /api/admin/issues/:id/note
+// @access  Private/Admin
+const addAdminNote = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: 'Note text is required' });
+    }
+
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ message: 'Issue not found' });
+
+    issue.adminNotes.push({
+      text: text.trim(),
+      createdBy: req.user._id,
+      createdAt: new Date(),
+    });
+
+    await issue.save();
+
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
+      .populate('adminNotes.createdBy', 'name');
+
+    getIo().emit('issueUpdated', populatedIssue);
+    res.json(populatedIssue);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -189,16 +279,23 @@ const deleteIssue = async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id);
 
-    if (issue) {
-      await issue.deleteOne();
-      getIo().emit('issueDeleted', req.params.id);
-      res.json({ message: 'Issue removed correctly' });
-    } else {
-      res.status(404).json({ message: 'Issue not found' });
-    }
+    if (!issue) return res.status(404).json({ message: 'Issue not found' });
+
+    await issue.deleteOne();
+    getIo().emit('issueDeleted', req.params.id);
+    res.json({ message: 'Issue removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = { getDashboardStats, getUsers, getAdminIssues, updateIssueStatus, assignIssue, deleteIssue };
+module.exports = {
+  getDashboardStats,
+  getUsers,
+  getAdminIssues,
+  getAdminIssueById,
+  updateIssueStatus,
+  assignIssue,
+  addAdminNote,
+  deleteIssue,
+};

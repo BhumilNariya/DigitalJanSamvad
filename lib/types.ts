@@ -6,6 +6,7 @@ export interface User {
   email: string
   role?: string
   phone?: string
+  mobileNumber?: string
   location?: string
   avatar?: string
   points: number
@@ -35,7 +36,19 @@ export interface RegisterData {
 }
 
 // Issue Types
-export type IssueStatus = 'pending' | 'assigned' | 'in-progress' | 'solved' | 'complete' | 'resolved' | 'open' | 'closed'
+export type IssueStatus =
+  | 'pending'
+  | 'verified'
+  | 'assigned'
+  | 'in-progress'
+  | 'resolved'
+  | 'closed'
+  | 'rejected'
+  // legacy/compat
+  | 'solved'
+  | 'complete'
+  | 'open'
+
 export type IssuePriority = 'low' | 'medium' | 'high'
 
 export type IssueCategory = string;
@@ -46,21 +59,33 @@ export interface IssueLocation {
   address: string
 }
 
+// Admin Note (internal note added by admin/staff)
+export interface AdminNote {
+  _id: string
+  text: string
+  createdBy?: { _id: string; name: string }
+  createdAt: string
+}
+
 export interface Issue {
-  id: string
+  _id?: string
+  id?: string
   title: string
   description: string
-  category: IssueCategory
+  category: any
   status: IssueStatus
   priority: IssuePriority
-  location: IssueLocation
+  location?: any
+  latitude?: number
+  longitude?: number
+  imageUrl?: string
   images?: string[]
-  reportedBy: {
-    id: string
-    name: string
-  }
-  upvotes: number
-  comments: number
+  reportedBy: any
+  assignedTo?: any
+  votes?: number
+  upvotes?: number
+  comments?: number
+  adminNotes?: AdminNote[]
   createdAt: string
   updatedAt: string
 }
@@ -108,7 +133,7 @@ export interface ApiResponse<T> {
 }
 
 // Category metadata
-export const categoryLabels: Record<IssueCategory, string> = {
+export const categoryLabels: Record<string, string> = {
   'roads': 'Roads & Infrastructure',
   'electricity': 'Electricity',
   'water': 'Water Supply',
@@ -121,7 +146,7 @@ export const categoryLabels: Record<IssueCategory, string> = {
   'other': 'Other',
 }
 
-export const categoryIcons: Record<IssueCategory, string> = {
+export const categoryIcons: Record<string, string> = {
   'roads': '🛣️',
   'electricity': '💡',
   'water': '💧',
@@ -134,25 +159,30 @@ export const categoryIcons: Record<IssueCategory, string> = {
   'other': '📋',
 }
 
-// Status metadata
-export const statusColors: Record<IssueStatus, string> = {
+// Status metadata — full 7-step workflow
+export const statusColors: Record<string, string> = {
   'pending': '#ef4444',
-  'open': '#ef4444',
+  'verified': '#3b82f6',
   'assigned': '#8b5cf6',
   'in-progress': '#f59e0b',
-  'solved': '#22c55e',
   'resolved': '#22c55e',
-  'complete': '#3b82f6',
   'closed': '#6b7280',
+  'rejected': '#dc2626',
+  // legacy compat
+  'open': '#ef4444',
+  'solved': '#22c55e',
+  'complete': '#3b82f6',
 }
 
-export const statusLabels: Record<IssueStatus, string> = {
+export const statusLabels: Record<string, string> = {
   'pending': 'Pending',
-  'open': 'Open',
+  'verified': 'Verified',
   'assigned': 'Assigned',
   'in-progress': 'In Progress',
-  'solved': 'Solved',
   'resolved': 'Resolved',
-  'complete': 'Complete',
   'closed': 'Closed',
+  'rejected': 'Rejected',
+  'open': 'Open',
+  'solved': 'Solved',
+  'complete': 'Complete',
 }
