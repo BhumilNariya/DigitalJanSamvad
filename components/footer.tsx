@@ -14,7 +14,7 @@ export function Footer() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <MapPin className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-lg text-foreground">DigitalJanSamvad</span>
+              <span className="font-bold text-lg text-foreground">Digital Jan Samvad</span>
             </Link>
             <p className="text-muted-foreground text-sm">
               Empowering communities to report and solve local issues together.
@@ -91,7 +91,7 @@ export function Footer() {
         {/* Divider */}
         <div className="border-t border-border pt-8">
           <div className="md:w-1/2 mb-4 md:mb-0">
-            &copy; 2026 DigitalJanSamvad. All rights reserved.
+            &copy; 2026 Digital Jan Samvad. All rights reserved.
           </div>
         </div>
       </div>

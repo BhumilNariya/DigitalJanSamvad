@@ -27,11 +27,12 @@ const createIcon = (color: string) => {
 
 const statusColors: Record<string, string> = {
   pending: '#ef4444',     // Red
-  'in-progress': '#f59e0b', // Orange // in-progress
-  solved: '#22c55e',      // Green
-  complete: '#6b7280',    // Gray
+  verified: '#3b82f6',    // Blue
+  assigned: '#8b5cf6',    // Violet
+  'in-progress': '#f59e0b',// Orange
   resolved: '#22c55e',    // Green
   closed: '#6b7280',      // Gray
+  rejected: '#000000',    // Black
 }
 
 const getStatusIcon = (status: string) => {

@@ -30,7 +30,7 @@ export default function AdminLayout({
       >
         {/* Header */}
         <div className="flex items-center justify-between h-16 px-6 border-b border-border">
-          <h1 className="text-lg font-bold text-foreground">DigitalJanSamvad Admin</h1>
+          <h1 className="text-lg font-bold text-foreground">Digital Jan Samvad Admin</h1>
           <button
             onClick={() => setSidebarOpen(false)}
             className="md:hidden"

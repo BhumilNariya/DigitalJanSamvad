@@ -74,7 +74,7 @@ export default function LoginPage() {
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <MessageSquare className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-foreground">Samvad</span>
+          <span className="text-2xl font-bold text-foreground">Digital Jan Samvad</span>
         </Link>
         <p className="mt-2 text-sm text-muted-foreground">Sign in to report civic issues</p>
       </div>

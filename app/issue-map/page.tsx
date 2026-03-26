@@ -1,7 +1,7 @@
 import { IssuesMap } from '@/components/issues-map'
 
 export const metadata = {
-  title: 'Civic Issues Map | Samvad',
+  title: 'Civic Issues Map | Digital Jan Samvad',
   description: 'Interactive map displaying all civic issues reported in the community. Apply filters to explore issues by status and category.',
 }
 

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState({
-    platformName: 'DigitalJanSamvad',
+    platformName: 'Digital Jan Samvad',
     allowAnonymousReports: false,
     platformDescription: 'Civic issue reporting platform',
     maxUploadSize: '10',

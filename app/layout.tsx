@@ -10,7 +10,7 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'DigitalJanSamvad - Community Issue Reporting',
+  title: 'Digital Jan Samvad - Community Issue Reporting',
   description: 'Empower your community by reporting and tracking local issues together',
   generator: 'v0.app',
   icons: {

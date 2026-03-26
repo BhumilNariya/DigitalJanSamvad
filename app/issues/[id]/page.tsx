@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { StatusBadge } from '@/components/status-badge'
 import type { IssueStatus } from '@/lib/types'
 import { CommentSection } from '@/components/comment-section'
+import { useSocket } from '@/hooks/useSocket'
 import {
   MapPin,
   Clock,
@@ -43,7 +44,7 @@ const mockIssueDetails: Record<string, IssueDetail> = {
     title: 'Pothole on MG Road',
     description: 'Large pothole causing accidents near Lal Darwaja, immediate repair needed',
     longDescription:
-      'A significant pothole has formed on MG Road near the Lal Darwaja area in Vadodara. This pothole is affecting traffic flow and poses a serious safety risk to two-wheelers and auto-rickshaws. The recent monsoon rains have worsened the damage significantly. Multiple citizens have reported the issue through Jan Samvad portal and it requires immediate attention from the Vadodara Municipal Corporation (VMC).',
+      'A significant pothole has formed on MG Road near the Lal Darwaja area in Vadodara. This pothole is affecting traffic flow and poses a serious safety risk to two-wheelers and auto-rickshaws. The recent monsoon rains have worsened the damage significantly. Multiple citizens have reported the issue through Digital Jan Samvad portal and it requires immediate attention from the Vadodara Municipal Corporation (VMC).',
     location: 'MG Road, Vadodara',
     status: 'in-progress',
     category: 'Infrastructure',
@@ -69,13 +70,36 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
   const [issue, setIssue] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [upvoted, setUpvoted] = useState(false)
+  
+  const socket = useSocket()
 
-  useEffect(() => {
+  const fetchIssueData = () => {
     import('@/lib/api').then(({ issuesApi }) => {
       issuesApi.getById(id).then(res => {
         if (res.success && res.data) {
           // Map backend data to our frontend format
           const dbIssue = res.data as any
+          // Generate a user-friendly timeline message based on status
+          const getTimelineMessage = (status: string, person?: string) => {
+            const nameStr = person ? ` (by ${person})` : '';
+            switch(status) {
+              case 'pending': return 'Issue was reported and received by the system.';
+              case 'verified': return `Issue was reviewed and verified as valid${nameStr}.`;
+              case 'assigned': return `Issue has been assigned to a response team${nameStr}.`;
+              case 'in-progress': return `Field work has officially started${nameStr}.`;
+              case 'resolved': return `Issue marked as resolved by the field team${nameStr}.`;
+              case 'closed': return `Issue has been officially closed${nameStr}.`;
+              case 'rejected': return `Issue was rejected${nameStr}.`;
+              default: return `Status updated to ${status}.`;
+            }
+          };
+
+          // Map the statusHistory into frontend updates using chronological order
+          const mappedUpdates = (dbIssue.statusHistory || []).map((historyItem: any) => ({
+            date: new Date(historyItem.updatedAt),
+            message: getTimelineMessage(historyItem.status, historyItem.updatedBy?.name)
+          }));
+
           setIssue({
             id: dbIssue._id,
             title: dbIssue.title,
@@ -88,7 +112,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             upvotes: dbIssue.upvotes || 0,
             reportedBy: dbIssue.reportedBy?.name || 'Citizen',
             reportedDate: new Date(dbIssue.createdAt),
-            updates: []
+            updates: mappedUpdates
           })
         } else {
           // Fallback to mock data if not found in real DB
@@ -97,7 +121,24 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         setLoading(false)
       })
     })
+  }
+
+  useEffect(() => {
+    fetchIssueData()
   }, [id])
+
+  useEffect(() => {
+    if (!socket) return
+    const handleUpdate = (updatedIssue: any) => {
+      if (updatedIssue._id === id || updatedIssue.id === id) {
+        fetchIssueData()
+      }
+    }
+    socket.on('issueUpdated', handleUpdate)
+    return () => {
+      socket.off('issueUpdated', handleUpdate)
+    }
+  }, [socket, id])
 
   if (loading) {
     return (
@@ -220,9 +261,9 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                         </div>
                         <div className="flex-1 pb-4">
                           <p className="text-xs text-muted-foreground mb-1">
-                            {update.date.toLocaleDateString()}
+                            {update.date.toLocaleDateString()} {update.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
-                          <p className="text-foreground">{update.message}</p>
+                          <p className="text-foreground text-sm leading-relaxed">{update.message}</p>
                         </div>
                       </div>
                     ))}

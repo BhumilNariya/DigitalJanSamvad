@@ -47,7 +47,7 @@ export function WelcomePopup() {
             <div className="flex items-center justify-center gap-3 mb-8">
               <Rocket className="w-8 h-8 text-blue-600" />
               <DialogTitle className="text-3xl sm:text-4xl font-bold text-blue-600">
-                DigitalJanSamvad Prototype Launch
+                Digital Jan Samvad Prototype Launch
               </DialogTitle>
             </div>
 
@@ -103,7 +103,7 @@ export function WelcomePopup() {
                     <span className="text-blue-600 font-bold mt-1">•</span>
                     <span>
                      We have just launched the fully functional Next.js/React frontend prototype 
-                  of DigitalJanSamvad. No real backend is attached yet, but you can explore 
+                  of Digital Jan Samvad. No real backend is attached yet, but you can explore 
                   all the views, UI components, and mocked user flows.
                     </span>
                   </li>

@@ -235,24 +235,26 @@ const mockMapIssues: any[] = [
   },
 ]
 
-type FilterStatus = 'all' | 'pending' | 'in-progress' | 'solved' | 'complete'
+type FilterStatus = 'all' | 'pending' | 'verified' | 'assigned' | 'in-progress' | 'resolved' | 'closed' | 'rejected'
 
 const statusColors: Record<string, string> = {
-  pending: '#ef4444',
-  'in-progress': '#f59e0b',
-  solved: '#22c55e',
-  complete: '#3b82f6',
-  resolved: '#22c55e',
-  closed: '#6b7280',
+  pending: '#ef4444',     // Red
+  verified: '#3b82f6',    // Blue
+  assigned: '#8b5cf6',    // Violet
+  'in-progress': '#f59e0b',// Orange
+  resolved: '#22c55e',    // Green
+  closed: '#6b7280',      // Gray
+  rejected: '#000000',    // Black
 }
 
 const statusLabels: Record<string, string> = {
   pending: 'PENDING',
+  verified: 'VERIFIED',
+  assigned: 'ASSIGNED',
   'in-progress': 'IN PROGRESS',
-  solved: 'SOLVED',
-  complete: 'COMPLETE',
   resolved: 'RESOLVED',
   closed: 'CLOSED',
+  rejected: 'REJECTED',
 }
 
 export function IssuesMap() {
@@ -270,9 +272,10 @@ export function IssuesMap() {
   
   useEffect(() => {
     const fetchIssues = async () => {
-      const res = await issuesApi.getAll();
-      if (res.success && res.data) {
-        const formatted = res.data.map((issue: any) => ({
+      // Map fetches all since it needs to plot all (or use a large limit)
+      const res = await issuesApi.getAll({ limit: 500 });
+      if (res.success && res.data && res.data.issues) {
+        const formatted = res.data.issues.map((issue: any) => ({
           id: issue._id,
           title: issue.title,
           description: issue.description,
@@ -335,10 +338,9 @@ export function IssuesMap() {
       let statusMatch = filter === 'all'
       if (!statusMatch) {
          const iStatus = issue.status as string
-         if (filter === 'pending') statusMatch = iStatus === 'pending'
-         if (filter === 'in-progress') statusMatch = iStatus === 'in-progress' || iStatus === 'in progress'
-         if (filter === 'solved') statusMatch = iStatus === 'solved' || iStatus === 'resolved'
-         if (filter === 'complete') statusMatch = iStatus === 'complete' || iStatus === 'closed'
+         // Normalize in-progress string just in case
+         const normStatus = iStatus === 'in progress' ? 'in-progress' : iStatus
+         statusMatch = normStatus === filter
       }
 
       // Handle category matching
@@ -388,11 +390,14 @@ export function IssuesMap() {
               onChange={(e) => setFilter(e.target.value as any)}
               className="bg-transparent border-none text-sm font-medium text-slate-700 cursor-pointer focus:ring-0 outline-none pr-6"
             >
-              <option value="all">All Status</option>
+              <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
+              <option value="verified">Verified</option>
+              <option value="assigned">Assigned</option>
               <option value="in-progress">In Progress</option>
-              <option value="solved">Resolved</option>
-              <option value="complete">Under Review</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+              <option value="rejected">Rejected</option>
             </select>
 
             <span className="text-slate-300">|</span>
@@ -466,6 +471,9 @@ export function IssuesMap() {
       <div className="flex flex-wrap items-center justify-center gap-6 mt-6 mb-4 text-sm text-slate-700 font-medium">
         <div className="flex items-center gap-2">
           <div className="w-3.5 h-3.5 rounded-full bg-red-500 shadow-sm border border-red-600"></div> Pending
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3.5 h-3.5 rounded-full bg-violet-500 shadow-sm border border-violet-600"></div> Assigned
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-sm border border-amber-600"></div> In Progress

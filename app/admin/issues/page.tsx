@@ -423,9 +423,9 @@ export default function AdminIssuesPage() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <span>{issue.category?.icon || '📋'}</span>
                         {issue.category?.name || 'Uncategorized'}
-                        {(issue.adminNotes?.length > 0) && (
+                        {(issue.internalNotes?.length > 0) && (
                           <span className="ml-1 flex items-center gap-0.5 text-indigo-500">
-                            <ClipboardList className="w-3 h-3" /> {issue.adminNotes.length}
+                            <ClipboardList className="w-3 h-3" /> {issue.internalNotes.length}
                           </span>
                         )}
                       </div>

@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export const metadata = {
-  title: 'About | DigitalJanSamvad',
-  description: 'Learn more about DigitalJanSamvad and our mission.',
+  title: 'About | Digital Jan Samvad',
+  description: 'Learn more about Digital Jan Samvad and our mission.',
 };
 
 export default function AboutPage() {

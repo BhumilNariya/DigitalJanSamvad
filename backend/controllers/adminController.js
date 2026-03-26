@@ -104,7 +104,8 @@ const getAdminIssues = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
-      .populate('adminNotes.createdBy', 'name')
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -129,7 +130,8 @@ const getAdminIssueById = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
-      .populate('adminNotes.createdBy', 'name');
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name');
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
@@ -140,26 +142,56 @@ const getAdminIssueById = async (req, res) => {
   }
 };
 
-// @desc    Update issue status (and optionally category / priority)
-// @route   PATCH /api/admin/issues/:id/status
+// @desc    Update an issue's general details (category, priority, etc)
+// @route   PATCH /api/admin/issues/:id
 // @access  Private/Admin
-const updateIssueStatus = async (req, res) => {
+const updateIssueDetails = async (req, res) => {
   try {
-    const { status, category, priority } = req.body;
-
+    const { category, priority } = req.body;
     const issue = await Issue.findById(req.params.id);
     if (!issue) return res.status(404).json({ message: 'Issue not found' });
-
-    const oldStatus = issue.status;
-
-    issue.status = status || issue.status;
+    
     if (category) issue.category = category;
     if (priority) issue.priority = priority;
 
     const updatedIssue = await issue.save();
+    
+    const populatedIssue = await Issue.findById(updatedIssue._id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name email mobileNumber')
+      .populate('assignedTo', 'name email')
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name');
+
+    getIo().emit('issueUpdated', populatedIssue);
+    res.json(populatedIssue);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const _updateStatus = async (req, res, newStatus) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+    if (!issue) return res.status(404).json({ message: 'Issue not found' });
+
+    const oldStatus = issue.status;
+    let isStatusChanged = false;
+    
+    if (oldStatus !== newStatus) {
+      issue.status = newStatus;
+      isStatusChanged = true;
+      issue.statusHistory.push({
+        status: newStatus,
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      });
+    }
+
+    const updatedIssue = await issue.save();
 
     // Award +20 points to reporter when resolved
-    if (oldStatus !== 'resolved' && updatedIssue.status === 'resolved') {
+    if (isStatusChanged && oldStatus !== 'resolved' && updatedIssue.status === 'resolved') {
       const user = await User.findById(issue.reportedBy);
       if (user) {
         user.points += 20;
@@ -177,7 +209,8 @@ const updateIssueStatus = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
-      .populate('adminNotes.createdBy', 'name');
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name');
 
     // Notification labels for all 7 workflow statuses
     const statusLabels = {
@@ -190,15 +223,18 @@ const updateIssueStatus = async (req, res) => {
       rejected: 'Rejected',
     };
 
-    const notification = await Notification.create({
-      recipient: issue.reportedBy,
-      type: 'status_change',
-      message: `Your issue "${issue.title}" status changed to ${statusLabels[updatedIssue.status] || updatedIssue.status}`,
-      issueId: issue._id,
-    });
+    if (isStatusChanged) {
+      const notification = await Notification.create({
+        recipient: issue.reportedBy,
+        type: 'status_change',
+        message: `Your issue "${issue.title}" status changed to ${statusLabels[updatedIssue.status] || updatedIssue.status}`,
+        issueId: issue._id,
+      });
 
-    // Emit targeted notification to reporter's room
-    getIo().to(issue.reportedBy.toString()).emit('newNotification', notification);
+      // Emit targeted notification to reporter's room
+      getIo().to(issue.reportedBy.toString()).emit('newNotification', notification);
+    }
+    
     // Broadcast issue updated to all
     getIo().emit('issueUpdated', populatedIssue);
 
@@ -207,6 +243,12 @@ const updateIssueStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+const verifyIssue = (req, res) => _updateStatus(req, res, 'verified');
+const startIssue = (req, res) => _updateStatus(req, res, 'in-progress');
+const resolveIssue = (req, res) => _updateStatus(req, res, 'resolved');
+const closeIssue = (req, res) => _updateStatus(req, res, 'closed');
+const rejectIssue = (req, res) => _updateStatus(req, res, 'rejected');
 
 // @desc    Assign staff to an issue
 // @route   PATCH /api/admin/issues/:id/assign
@@ -222,6 +264,11 @@ const assignIssue = async (req, res) => {
     // Only auto-advance if still at pending/verified
     if (issue.status === 'pending' || issue.status === 'verified') {
       issue.status = 'assigned';
+      issue.statusHistory.push({
+        status: 'assigned',
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      });
     }
     const updatedIssue = await issue.save();
 
@@ -229,7 +276,8 @@ const assignIssue = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
-      .populate('adminNotes.createdBy', 'name');
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name');
 
     getIo().emit('issueUpdated', populatedIssue);
     res.json(populatedIssue);
@@ -238,10 +286,10 @@ const assignIssue = async (req, res) => {
   }
 };
 
-// @desc    Add an internal admin note to an issue
-// @route   PATCH /api/admin/issues/:id/note
+// @desc    Add an internal note to an issue
+// @route   POST /api/admin/issues/:id/note
 // @access  Private/Admin
-const addAdminNote = async (req, res) => {
+const addInternalNote = async (req, res) => {
   try {
     const { text } = req.body;
     if (!text || !text.trim()) {
@@ -251,7 +299,7 @@ const addAdminNote = async (req, res) => {
     const issue = await Issue.findById(req.params.id);
     if (!issue) return res.status(404).json({ message: 'Issue not found' });
 
-    issue.adminNotes.push({
+    issue.internalNotes.push({
       text: text.trim(),
       createdBy: req.user._id,
       createdAt: new Date(),
@@ -263,7 +311,8 @@ const addAdminNote = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name email mobileNumber')
       .populate('assignedTo', 'name email')
-      .populate('adminNotes.createdBy', 'name');
+      .populate('internalNotes.createdBy', 'name')
+      .populate('statusHistory.updatedBy', 'name');
 
     getIo().emit('issueUpdated', populatedIssue);
     res.json(populatedIssue);
@@ -294,8 +343,13 @@ module.exports = {
   getUsers,
   getAdminIssues,
   getAdminIssueById,
-  updateIssueStatus,
+  updateIssueDetails,
+  verifyIssue,
+  startIssue,
+  resolveIssue,
+  closeIssue,
+  rejectIssue,
   assignIssue,
-  addAdminNote,
+  addInternalNote,
   deleteIssue,
 };

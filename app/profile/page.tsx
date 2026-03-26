@@ -37,7 +37,7 @@ export default function CitizenDashboardPage() {
       setLoadingIssues(true)
       const res = await issuesApi.getAll()
       if (res.success && res.data) {
-        const all = res.data as any[]
+        const all = (Array.isArray(res.data) ? res.data : res.data.issues || []) as any[]
         const mine = user ? all.filter((i: any) =>
           (i.reportedBy?._id || i.reportedBy?.id || i.reportedBy) === (user as any)._id
         ) : []

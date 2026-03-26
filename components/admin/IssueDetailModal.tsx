@@ -204,26 +204,43 @@ export default function IssueDetailModal({ issue, staffUsers, onClose, onRefresh
               {/* Status Workflow Timeline */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Status Workflow</p>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {WORKFLOW.map((step, idx) => {
                     const isActive = step.key === currentStatus
                     const isDone = !isRejected && currentIdx > idx
+                    
+                    // Match against history array to see when this happened
+                    const historyEntry = (issue.statusHistory || []).find((h: any) => h.status === step.key)
+                    
                     const StepIcon = step.icon
                     return (
-                      <div key={step.key} className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                        isActive ? 'bg-primary/10 border border-primary/20' :
-                        isDone ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'opacity-40'
+                      <div key={step.key} className={`flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                        isActive ? 'bg-primary/5 border border-primary/20 shadow-sm' :
+                        isDone ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : 'opacity-40'
                       }`}>
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        <div className={`w-7 h-7 mt-0.5 rounded-full flex items-center justify-center flex-shrink-0 ${
                           isActive ? step.color : isDone ? 'bg-emerald-500' : 'bg-slate-200'
                         }`}>
-                          <StepIcon className="w-3.5 h-3.5 text-white" />
+                          <StepIcon className="w-4 h-4 text-white" />
                         </div>
-                        <span className={`text-sm ${isActive ? 'font-bold text-foreground' : isDone ? 'font-medium text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                          {step.label}
-                        </span>
-                        {isActive && <span className="ml-auto text-xs text-primary font-semibold">Current</span>}
-                        {isDone && <CheckCircle2 className="ml-auto w-4 h-4 text-emerald-500" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm ${isActive ? 'font-bold text-foreground' : isDone ? 'font-semibold text-emerald-800 dark:text-emerald-400' : 'font-medium text-muted-foreground'}`}>
+                              {step.label}
+                            </span>
+                            {isActive && <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">Active</span>}
+                            {isDone && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                          </div>
+                          
+                          {historyEntry && (
+                            <div className="mt-1 text-[11px] text-muted-foreground flex flex-col">
+                              <span>By: {historyEntry.updatedBy?.name || 'System / Admin'}</span>
+                              <span>{new Date(historyEntry.updatedAt).toLocaleString(undefined, { 
+                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+                              })}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )
                   })}
@@ -303,15 +320,15 @@ export default function IssueDetailModal({ issue, staffUsers, onClose, onRefresh
               {/* Admin Notes */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1">
-                  <ClipboardList className="w-3.5 h-3.5" /> Internal Notes ({(issue.adminNotes || []).length})
+                  <ClipboardList className="w-3.5 h-3.5" /> Internal Notes ({(issue.internalNotes || []).length})
                 </p>
 
                 {/* Existing notes */}
                 <div className="space-y-2 max-h-40 overflow-y-auto mb-3">
-                  {(issue.adminNotes || []).length === 0 ? (
+                  {(issue.internalNotes || []).length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-2">No internal notes yet.</p>
                   ) : (
-                    [...(issue.adminNotes || [])].reverse().map((note: AdminNote) => (
+                    [...(issue.internalNotes || [])].reverse().map((note: AdminNote) => (
                       <div key={note._id} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 text-sm border border-slate-100 dark:border-slate-700">
                         <p className="text-foreground">{note.text}</p>
                         <p className="text-xs text-muted-foreground mt-1">

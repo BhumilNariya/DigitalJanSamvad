@@ -69,7 +69,7 @@ export const authApi = {
 };
 
 export const issuesApi = {
-  async getAll(params?: any): Promise<ApiResponse<Issue[]>> {
+  async getAll(params?: any): Promise<ApiResponse<any>> {
     try {
       const res = await apiClient.get('/issues', { params });
       return { success: true, data: res.data };
@@ -111,9 +111,20 @@ export const issuesApi = {
   },
   async updateStatus(issueId: string, status: string, categoryId?: string): Promise<ApiResponse<Issue>> {
     try {
-      const payload: any = { status };
-      if (categoryId) payload.category = categoryId;
-      const res = await apiClient.patch(`/admin/issues/${issueId}/status`, payload);
+      if (categoryId) {
+        // Just update category via the general update endpoint
+        await apiClient.patch(`/admin/issues/${issueId}`, { category: categoryId });
+      }
+      
+      let route = `/admin/issues/${issueId}`;
+      if (status === 'verified') route = `/admin/issues/${issueId}/verify`;
+      else if (status === 'assigned') route = `/admin/issues/${issueId}/assign`;
+      else if (status === 'in-progress') route = `/admin/issues/${issueId}/start`;
+      else if (status === 'resolved') route = `/admin/issues/${issueId}/resolve`;
+      else if (status === 'closed') route = `/admin/issues/${issueId}/close`;
+      else if (status === 'rejected') route = `/admin/issues/${issueId}/reject`;
+
+      const res = await apiClient.patch(route, { status });
       return { success: true, data: res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to update issue' };
@@ -155,7 +166,15 @@ export const adminApi = {
   },
   async updateIssueStatus(issueId: string, status: string): Promise<ApiResponse<any>> {
     try {
-      const res = await apiClient.patch(`/admin/issues/${issueId}/status`, { status });
+      let route = `/admin/issues/${issueId}`;
+      if (status === 'verified') route = `/admin/issues/${issueId}/verify`;
+      else if (status === 'assigned') route = `/admin/issues/${issueId}/assign`;
+      else if (status === 'in-progress') route = `/admin/issues/${issueId}/start`;
+      else if (status === 'resolved') route = `/admin/issues/${issueId}/resolve`;
+      else if (status === 'closed') route = `/admin/issues/${issueId}/close`;
+      else if (status === 'rejected') route = `/admin/issues/${issueId}/reject`;
+
+      const res = await apiClient.patch(route);
       return { success: true, data: res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to update status' };
@@ -187,7 +206,7 @@ export const adminApi = {
   },
   async addAdminNote(issueId: string, text: string): Promise<ApiResponse<any>> {
     try {
-      const res = await apiClient.patch(`/admin/issues/${issueId}/note`, { text });
+      const res = await apiClient.post(`/admin/issues/${issueId}/note`, { text });
       return { success: true, data: res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to add note' };

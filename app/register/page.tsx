@@ -118,7 +118,7 @@ export default function RegisterPage() {
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
               <MapPin className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-foreground">Jan Samvad</span>
+            <span className="text-2xl font-bold text-foreground">Digital Jan Samvad</span>
           </Link>
           <p className="mt-2 text-muted-foreground">
             Join our community to report and track civic issues.

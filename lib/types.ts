@@ -67,6 +67,13 @@ export interface AdminNote {
   createdAt: string
 }
 
+// Status History
+export interface StatusHistoryEntry {
+  status: IssueStatus
+  changedBy?: { _id: string; name: string }
+  changedAt: string
+}
+
 export interface Issue {
   _id?: string
   id?: string
@@ -86,6 +93,7 @@ export interface Issue {
   upvotes?: number
   comments?: number
   adminNotes?: AdminNote[]
+  statusHistory?: StatusHistoryEntry[]
   createdAt: string
   updatedAt: string
 }

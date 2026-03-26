@@ -142,6 +142,11 @@ const createIssue = async (req, res) => {
       longitude: lng || undefined,
       imageUrl,
       reportedBy: req.user._id,
+      statusHistory: [{
+        status: 'pending',
+        changedBy: req.user._id,
+        changedAt: new Date()
+      }]
     });
 
     console.log('[createIssue] Saving to MongoDB:', {
@@ -171,23 +176,70 @@ const createIssue = async (req, res) => {
   }
 };
 
-// @desc    Get all issues
+// @desc    Get all issues with pagination and search
 // @route   GET /api/issues
 // @access  Public
 const getIssues = async (req, res) => {
   try {
-    const { category, status, sortByDesc } = req.query;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const { category, status, sortByDesc, search } = req.query;
     const query = {};
-    if (category) query.category = category;
-    if (status) query.status = status;
-    const sortOption = sortByDesc === 'false' ? { createdAt: 1 } : { createdAt: -1 };
+
+    if (category && category !== 'All' && category !== 'all') {
+      // Find category by name if it's a string, or support ID matching
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(category)) {
+        query.category = category;
+      } else {
+        const Category = require('../models/Category');
+        const catDoc = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } });
+        if (catDoc) query.category = catDoc._id;
+      }
+    }
+
+    if (status && status !== 'All' && status !== 'all') {
+      query.status = status;
+    }
+
+    if (search && search.trim() !== '') {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { 'location': searchRegex },
+      ];
+    }
+
+    // Default sort by trending (upvotes), then by newest/oldest 
+    let sortOption = {};
+    if (sortByDesc === 'trending') {
+      sortOption = { upvotes: -1, votes: -1, createdAt: -1 };
+    } else if (sortByDesc === 'oldest' || sortByDesc === 'false') {
+      sortOption = { createdAt: 1 };
+    } else {
+      // 'newest' or default
+      sortOption = { createdAt: -1 };
+    }
+
+    const totalIssues = await Issue.countDocuments(query);
 
     const issues = await Issue.find(query)
       .populate('category', 'name icon')
       .populate('reportedBy', 'name avatar')
-      .sort(sortOption);
+      .populate('statusHistory.changedBy', 'name')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
 
-    res.json(issues);
+    res.json({
+      issues,
+      totalIssues,
+      totalPages: Math.ceil(totalIssues / limit),
+      currentPage: page,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -200,7 +252,9 @@ const getIssueById = async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id)
       .populate('category', 'name icon')
-      .populate('reportedBy', 'name avatar');
+      .populate('reportedBy', 'name avatar email mobileNumber')
+      .populate('assignedTo', 'name')
+      .populate('statusHistory.changedBy', 'name');
 
     if (issue) {
       res.json(issue);
