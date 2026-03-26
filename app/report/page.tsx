@@ -60,6 +60,8 @@ export default function ReportIssuePage() {
         return;
     }
     
+    setIsSubmitting(true)
+
     const formData = new FormData();
     formData.append("title", formDataState.title);
     formData.append("description", formDataState.description);
@@ -71,16 +73,17 @@ export default function ReportIssuePage() {
     }
 
     try {
-      const res = await axios.post("http://localhost:5000/api/issues", formData, {
+      await axios.post("http://localhost:5000/api/issues", formData, {
         headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${localStorage.getItem('jansamvad_token')}`
         }
       });
       setIsSubmitting(false);
       router.push('/report/success');
-    } catch (error) {
+    } catch (error: any) {
       setIsSubmitting(false);
-      alert('Failed to create issue');
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to create issue';
+      alert(errorMsg);
     }
   }
 

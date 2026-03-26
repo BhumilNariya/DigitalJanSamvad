@@ -6,7 +6,11 @@ const IssueSchema = new mongoose.Schema({
   category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   imageUrl: { type: String, default: "" },
 
-  location: String,
+  location: {
+    latitude: { type: Number },
+    longitude: { type: Number },
+    address: { type: String }
+  },
   status: { type: String, default: "Open" },
   priority: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
