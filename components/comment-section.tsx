@@ -55,9 +55,9 @@ export function CommentSection({ issueId }: CommentSectionProps) {
   }
 
   return (
-    <div className="border border-border rounded-lg bg-background overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-border bg-secondary/70">
         <MessageSquare className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-foreground text-sm">
           Comments {comments.length > 0 && `(${comments.length})`}
@@ -67,20 +67,29 @@ export function CommentSection({ issueId }: CommentSectionProps) {
       {/* Comment List */}
       <div className="divide-y divide-border max-h-80 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-            Loading comments...
+          <div className="space-y-4 p-5">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={index} className="flex gap-3">
+                <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-2/3 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : comments.length === 0 ? (
-          <div className="flex flex-col items-center py-8 gap-2 text-muted-foreground">
+          <div className="flex flex-col items-center py-10 gap-2 text-muted-foreground">
             <MessageSquare className="w-8 h-8 opacity-30" />
-            <p className="text-sm">No comments yet. Be the first to comment!</p>
+            <p className="text-sm">No comments yet. Start the discussion for this civic issue.</p>
           </div>
         ) : (
           comments.map((comment) => {
             const authorName = (comment.author as any)?.name || 'Unknown'
             return (
-              <div key={comment.id} className="flex gap-3 p-4">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+              <div key={comment.id} className="flex gap-3 p-5">
+                <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary/15 to-accent/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 ring-1 ring-primary/10">
                   {initials(authorName)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -88,7 +97,7 @@ export function CommentSection({ issueId }: CommentSectionProps) {
                     <span className="text-sm font-medium text-foreground">{authorName}</span>
                     <span className="text-xs text-muted-foreground">{timeAgo(comment.createdAt)}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{(comment as any).text || comment.content}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed rounded-2xl bg-secondary/70 px-4 py-3 border border-border/60">{(comment as any).text || comment.content}</p>
                 </div>
               </div>
             )
@@ -99,9 +108,9 @@ export function CommentSection({ issueId }: CommentSectionProps) {
 
       {/* Add Comment */}
       {isAuthenticated ? (
-        <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-muted/20">
+        <form onSubmit={handleSubmit} className="p-5 border-t border-border bg-secondary/40">
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+            <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary/15 to-accent/15 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1 ring-1 ring-primary/10">
               {user?.name ? initials(user.name) : <User className="w-3 h-3" />}
             </div>
             <div className="flex-1 space-y-2">
@@ -110,7 +119,7 @@ export function CommentSection({ issueId }: CommentSectionProps) {
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 rows={2}
-                className="resize-none text-sm"
+                className="resize-none text-sm rounded-xl bg-background"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -123,6 +132,7 @@ export function CommentSection({ issueId }: CommentSectionProps) {
                 <Button
                   type="submit"
                   size="sm"
+                  className="rounded-xl"
                   disabled={!newComment.trim() || isSubmitting}
                 >
                   <Send className="w-3 h-3 mr-1.5" />

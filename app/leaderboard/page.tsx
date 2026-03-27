@@ -76,23 +76,23 @@ export default function LeaderboardPage() {
   return (
     <div className="w-full">
       {/* Header */}
-      <section className="bg-gradient-to-br from-primary/5 via-background to-background border-b border-border">
+      <section className="border-b border-border bg-linear-to-br from-primary/10 via-background to-secondary/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-4xl font-bold text-foreground mb-4">Community Leaderboard</h1>
-          <p className="text-muted-foreground text-lg">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground mb-4">Community Leaderboard</h1>
+          <p className="text-muted-foreground text-lg max-w-3xl">
             Celebrate our most active community members making a difference
           </p>
         </div>
       </section>
 
       {/* Filters Section */}
-      <section className="border-b border-border bg-secondary">
+      <section className="border-b border-border bg-background/90 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="surface-card grid grid-cols-1 md:grid-cols-2 gap-6 p-5">
             {/* Sort By */}
             <div>
               <label className="text-sm font-medium text-foreground mb-3 block">Sort By</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="inline-flex flex-wrap gap-2 rounded-xl bg-secondary/70 p-1.5">
                 <Button
                   size="sm"
                   variant={sortBy === 'points' ? 'default' : 'outline'}
@@ -123,7 +123,7 @@ export default function LeaderboardPage() {
             {/* Timeframe */}
             <div>
               <label className="text-sm font-medium text-foreground mb-3 block">Timeframe</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="inline-flex flex-wrap gap-2 rounded-xl bg-secondary/70 p-1.5">
                 <Button
                   size="sm"
                   variant={filterTimeframe === 'week' ? 'default' : 'outline'}
@@ -157,7 +157,7 @@ export default function LeaderboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {sortedLeaderboard.slice(0, 3).map((entry, idx) => (
             <div key={entry.id} className={idx === 0 ? 'md:col-span-1' : ''}>
-              <Card className="h-full hover:shadow-lg transition-shadow">
+              <Card className={`surface-card h-full transition-all duration-300 hover:-translate-y-1 ${entry.rank === 1 ? 'bg-linear-to-br from-primary/10 to-accent/10 border-primary/25' : 'bg-linear-to-br from-card to-secondary/60'}`}>
                 <CardContent className="p-6">
                   <div className="text-center mb-4">
                     <div
@@ -198,7 +198,20 @@ export default function LeaderboardPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <h2 className="text-2xl font-bold text-foreground mb-6">Full Rankings</h2>
         {loading ? (
-          <p className="text-muted-foreground">Loading rankings...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="surface-card p-5">
+                <div className="flex gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-muted animate-pulse" />
+                  <div className="flex-1 space-y-3">
+                    <div className="h-5 w-1/2 rounded bg-muted animate-pulse" />
+                    <div className="h-4 w-1/3 rounded bg-muted animate-pulse" />
+                    <div className="h-4 w-1/4 rounded bg-muted animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : sortedLeaderboard.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {sortedLeaderboard.map((entry) => (
@@ -211,11 +224,11 @@ export default function LeaderboardPage() {
       </section>
 
       {/* Leaderboard Info */}
-      <section className="bg-secondary">
+      <section className="bg-secondary/70">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h2 className="text-2xl font-bold text-foreground mb-6">How Points Are Earned</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
+            <Card className="surface-card">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Report an Issue</h3>
                 <p className="text-sm text-muted-foreground">
@@ -224,7 +237,7 @@ export default function LeaderboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="surface-card">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Get Upvotes</h3>
                 <p className="text-sm text-muted-foreground">
@@ -233,7 +246,7 @@ export default function LeaderboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="surface-card">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Contribute Comments</h3>
                 <p className="text-sm text-muted-foreground">

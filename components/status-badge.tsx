@@ -13,55 +13,65 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     pending: {
       label: 'Pending',
       icon: Clock3,
-      className: 'bg-red-500 text-white hover:bg-red-600',
+      className: 'border-slate-200 bg-slate-100 text-slate-700',
     },
     open: {
-      label: 'Open',
+      label: 'Pending',
       icon: AlertCircle,
-      className: 'bg-red-500 text-white hover:bg-red-600',
+      className: 'border-slate-200 bg-slate-100 text-slate-700',
+    },
+    verified: {
+      label: 'Verified',
+      icon: ShieldCheck,
+      className: 'border-blue-200 bg-blue-50 text-blue-700',
     },
     assigned: {
       label: 'Assigned',
       icon: UserCheck,
-      className: 'bg-violet-500 text-white hover:bg-violet-600',
+      className: 'border-violet-200 bg-violet-50 text-violet-700',
     },
     'in-progress': {
       label: 'In Progress',
       icon: Clock,
-      className: 'bg-amber-500 text-white hover:bg-amber-600',
+      className: 'border-orange-200 bg-orange-50 text-orange-700',
     },
     resolved: {
       label: 'Resolved',
       icon: CheckCircle2,
-      className: 'bg-emerald-500 text-white hover:bg-emerald-600',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     },
     solved: {
-      label: 'Solved',
+      label: 'Resolved',
       icon: ShieldCheck,
-      className: 'bg-emerald-500 text-white hover:bg-emerald-600',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     },
     complete: {
-      label: 'Complete',
+      label: 'Closed',
       icon: CheckCircle2,
-      className: 'bg-blue-500 text-white hover:bg-blue-600',
+      className: 'border-slate-300 bg-slate-200 text-slate-800',
     },
     closed: {
       label: 'Closed',
       icon: CheckCircle2,
-      className: 'bg-gray-500 text-white hover:bg-gray-600',
+      className: 'border-slate-300 bg-slate-200 text-slate-800',
+    },
+    rejected: {
+      label: 'Rejected',
+      icon: AlertCircle,
+      className: 'border-rose-200 bg-rose-50 text-rose-700',
     },
   }
 
   const badgeConfig = config[status?.toLowerCase()] || {
     label: status || 'Unknown',
     icon: AlertCircle,
-    className: 'bg-gray-500 text-white hover:bg-gray-600',
+    className: 'border-slate-200 bg-slate-100 text-slate-700',
   }
 
   const { label, icon: Icon, className } = badgeConfig
 
   return (
-    <Badge className={`flex items-center gap-1 ${className}`}>
+    <Badge className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold shadow-none ${className}`}>
       <Icon className="w-3 h-3" />
       {label}
     </Badge>

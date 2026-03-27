@@ -192,7 +192,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
       {/* Main Content */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header Card */}
-        <Card className="mb-6">
+        <Card className="surface-card mb-6 overflow-hidden">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
               <div className="flex-1">
@@ -208,21 +208,21 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Location</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-1">Location</p>
                 <div className="flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">{issue.location}</span>
                 </div>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Reported By</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-1">Reported By</p>
                 <div className="flex items-center gap-1">
                   <User className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">{issue.reportedBy}</span>
                 </div>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Reported Date</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-1">Reported Date</p>
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">
@@ -231,7 +231,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 </div>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Support</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-1">Support</p>
                 <div className="flex items-center gap-1">
                   <ThumbsUp className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">
@@ -250,7 +250,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             
             {/* Issue Image — Renders if Cloudinary image exists */}
             {(issue.image || issue.image) && (
-              <Card className="overflow-hidden bg-muted">
+              <Card className="surface-card overflow-hidden bg-muted">
                 <img 
                   src={issue.image || issue.image} 
                   alt={issue.title} 
@@ -260,7 +260,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             )}
 
             {/* Description */}
-            <Card>
+            <Card className="surface-card">
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-foreground mb-3">Description</h2>
                 <p className="text-foreground leading-relaxed whitespace-pre-wrap">{issue.longDescription}</p>
@@ -269,23 +269,23 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
 
             {/* Updates */}
             {issue.updates && issue.updates.length > 0 && (
-              <Card>
+              <Card className="surface-card">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-semibold text-foreground mb-4">Updates</h2>
                   <div className="space-y-4">
                     {issue.updates.map((update: any, idx: number) => (
                       <div key={idx} className="flex gap-4">
                         <div className="flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-primary mt-2" />
+                          <div className={`w-3 h-3 rounded-full mt-2 ${idx === issue.updates.length - 1 ? 'bg-primary ring-4 ring-primary/15' : 'bg-border'}`} />
                           {idx < issue.updates.length - 1 && (
                             <div className="w-0.5 h-12 bg-border my-2" />
                           )}
                         </div>
                         <div className="flex-1 pb-4">
-                          <p className="text-xs text-muted-foreground mb-1">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-1">
                             {update.date.toLocaleDateString()} {update.date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
-                          <p className="text-foreground text-sm leading-relaxed">{update.message}</p>
+                          <p className={`text-sm leading-relaxed rounded-xl border px-4 py-3 ${idx === issue.updates.length - 1 ? 'border-primary/15 bg-primary/5 text-foreground' : 'border-border/70 bg-secondary/60 text-foreground'}`}>{update.message}</p>
                         </div>
                       </div>
                     ))}
@@ -301,10 +301,10 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
           {/* Sidebar */}
           <div className="space-y-4">
             {/* Action Buttons */}
-            <Card>
+            <Card className="surface-card">
               <CardContent className="p-4 space-y-3">
                 <Button
-                  className="w-full"
+                  className="w-full rounded-xl"
                   variant={upvoted ? 'default' : 'outline'}
                   onClick={handleUpvote}
                   disabled={upvoted || upvoteLoading}
@@ -312,11 +312,11 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   <ThumbsUp className="w-4 h-4 mr-2" />
                   {upvoteLoading ? 'Upvoting...' : upvoted ? 'Upvoted' : 'Upvote'}
                 </Button>
-                <Button className="w-full" variant="outline">
+                <Button className="w-full rounded-xl" variant="outline">
                   <Share2 className="w-4 h-4 mr-2" />
                   Share
                 </Button>
-                <Button className="w-full text-destructive" variant="outline">
+                <Button className="w-full rounded-xl text-destructive" variant="outline">
                   <Flag className="w-4 h-4 mr-2" />
                   Report
                 </Button>
@@ -324,20 +324,20 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             </Card>
 
             {/* Related Info */}
-            <Card>
+            <Card className="surface-card sticky top-24">
               <CardContent className="p-4">
                 <h3 className="font-semibold text-foreground mb-3">About This Issue</h3>
                 <div className="space-y-3 text-sm">
                   <div>
-                    <p className="text-muted-foreground text-xs mb-1">Category</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-[0.14em] mb-1">Category</p>
                     <p className="text-foreground font-medium">{issue.category}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground text-xs mb-1">Status</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-[0.14em] mb-1">Status</p>
                     <StatusBadge status={issue.status} />
                   </div>
                   <div>
-                    <p className="text-muted-foreground text-xs mb-1">Total Support</p>
+                    <p className="text-muted-foreground text-xs uppercase tracking-[0.14em] mb-1">Total Support</p>
                     <p className="text-foreground font-medium">
                       {issue.upvotes} upvotes
                     </p>

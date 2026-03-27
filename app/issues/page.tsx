@@ -6,7 +6,7 @@ import { useSocket } from '@/hooks/useSocket'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { IssueCard } from '@/components/issue-card'
-import { Search, MapPin, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Search, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const statuses = ['All', 'Pending', 'Verified', 'Assigned', 'In Progress', 'Resolved', 'Closed', 'Rejected']
 
@@ -57,6 +57,7 @@ export default function IssuesPage() {
         location: issue.location || 'Unknown',
         status: issue.status || 'pending',
         category: issue.category?.name || 'Other',
+        priority: issue.priority || 'medium',
         upvotes: issue.upvotes || issue.votes || 0,
         imageUrl: issue.imageUrl,
         comments: issue.commentsCount || issue.comments || 0,
@@ -111,38 +112,39 @@ export default function IssuesPage() {
   return (
     <>
       {/* Header */}
-      <section className="bg-gradient-to-br from-primary/5 via-background to-background border-b border-border">
+      <section className="border-b border-border bg-linear-to-br from-primary/10 via-background to-secondary/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-4xl font-bold text-foreground mb-4">Community Issues</h1>
-          <p className="text-muted-foreground text-lg">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground mb-4">Community Issues</h1>
+          <p className="text-muted-foreground text-lg max-w-3xl">
             Browse and track issues being reported and resolved in your community
           </p>
         </div>
       </section>
 
       {/* Filters Section */}
-      <section className="border-b border-border bg-secondary">
+      <section className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="surface-card p-5">
           {/* Search Bar */}
           <div className="mb-6 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 placeholder="Search by title, location, or description..."
-                className="pl-10"
+                className="pl-10 h-11 rounded-xl"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={handleSearchSubmit}
               />
             </div>
-            <Button onClick={() => handleSearchSubmit()}>Search</Button>
+            <Button className="h-11 rounded-xl px-5" onClick={() => handleSearchSubmit()}>Search</Button>
           </div>
 
           {/* Filter Controls */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Category Filter */}
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3 block">
                 Category
               </label>
               <div className="flex flex-wrap gap-2">
@@ -161,7 +163,7 @@ export default function IssuesPage() {
 
             {/* Status Filter */}
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3 block">
                 Status
               </label>
               <div className="flex flex-wrap gap-2">
@@ -180,13 +182,13 @@ export default function IssuesPage() {
 
             {/* Sort */}
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3 block">
                 Sort By
               </label>
               <select
                 value={sortBy}
                 onChange={(e) => { setSortBy(e.target.value as any); setPage(1); }}
-                className="w-full h-9 px-3 border border-border rounded-md bg-background text-foreground text-sm focus:ring-2 focus:ring-primary"
+                className="w-full h-11 px-3 border border-border rounded-xl bg-background text-foreground text-sm focus:ring-2 focus:ring-primary shadow-sm"
               >
                 <option value="trending">Trending (Most Votes)</option>
                 <option value="newest">Newest First</option>
@@ -194,25 +196,36 @@ export default function IssuesPage() {
               </select>
             </div>
           </div>
+          </div>
         </div>
       </section>
 
       {/* Issues Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
-            <Loader2 className="w-10 h-10 animate-spin mb-4 text-primary" />
-            <p>Loading community issues...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="surface-card overflow-hidden">
+                <div className="aspect-[16/10] animate-pulse bg-muted" />
+                <div className="space-y-3 p-5">
+                  <div className="h-5 w-3/4 rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-full rounded bg-muted animate-pulse" />
+                  <div className="h-4 w-2/3 rounded bg-muted animate-pulse" />
+                  <div className="h-10 w-full rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : issuesData.length === 0 ? (
-          <div className="text-center py-12">
-            <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No issues found</h3>
-            <p className="text-muted-foreground mb-6">
-              Try adjusting your filters or search query
+          <div className="surface-card text-center py-14 px-6">
+            <MapPin className="w-12 h-12 text-primary mx-auto mb-4 opacity-70" />
+            <h3 className="text-xl font-semibold text-foreground mb-2">No issues found</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Try broadening your filters or search terms to view more civic reports from the community.
             </p>
             <Button
               variant="outline"
+              className="rounded-xl"
               onClick={() => {
                 setSearchInput('')
                 setSearchQuery('')

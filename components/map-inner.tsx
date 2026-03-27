@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import Link from 'next/link'
 
-// Create custom icons based on status
 const createIcon = (color: string) => {
   return L.divIcon({
     className: 'custom-marker',
@@ -15,8 +14,8 @@ const createIcon = (color: string) => {
         height: 24px;
         background-color: ${color};
         border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        border-radius: 9999px;
+        box-shadow: 0 8px 18px rgba(15,23,42,0.18);
       "></div>
     `,
     iconSize: [24, 24],
@@ -26,13 +25,13 @@ const createIcon = (color: string) => {
 }
 
 const statusColors: Record<string, string> = {
-  pending: '#ef4444',     // Red
-  verified: '#3b82f6',    // Blue
-  assigned: '#8b5cf6',    // Violet
-  'in-progress': '#f59e0b',// Orange
-  resolved: '#22c55e',    // Green
-  closed: '#6b7280',      // Gray
-  rejected: '#000000',    // Black
+  pending: '#64748b',
+  verified: '#2563eb',
+  assigned: '#7c3aed',
+  'in-progress': '#ea580c',
+  resolved: '#16a34a',
+  closed: '#334155',
+  rejected: '#be123c',
 }
 
 const getStatusIcon = (status: string) => {
@@ -40,26 +39,29 @@ const getStatusIcon = (status: string) => {
   return createIcon(statusColors[normStatus] || statusColors.pending)
 }
 
-export default function MapInner({ issues, mapView }: { issues: any[], mapView: string }) {
+export default function MapInner({ issues, mapView }: { issues: any[]; mapView: string }) {
   const tileUrl = mapView === 'street'
     ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
     : 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
 
   return (
-    <MapContainer center={[23.0350, 72.5560]} zoom={12} style={{ height: '100%', width: '100%', zIndex: 0 }}>
+    <MapContainer center={[23.035, 72.556]} zoom={12} style={{ height: '100%', width: '100%', zIndex: 0 }}>
       <TileLayer
-        key={mapView} // Force re-render of TileLayer when source changes
+        key={mapView}
         url={tileUrl}
-        attribution={mapView === 'street' 
-          ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          : 'Map data &copy; OpenTopoMap contributors'}
+        attribution={
+          mapView === 'street'
+            ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            : 'Map data &copy; OpenTopoMap contributors'
+        }
       />
       {issues.map((issue) => {
-        // Only render valid valid coordinates (exclude 0,0)
         if (!issue.lat || !issue.lng || isNaN(issue.lat) || isNaN(issue.lng)) {
           return null
         }
-        
+
+        const normalizedStatus = issue.status.toLowerCase().replace('in progress', 'in-progress')
+
         return (
           <Marker
             key={issue.id || issue._id || Math.random()}
@@ -67,21 +69,30 @@ export default function MapInner({ issues, mapView }: { issues: any[], mapView: 
             icon={getStatusIcon(issue.status)}
           >
             <Popup>
-              <div className="min-w-[200px] font-sans">
-                <h3 className="font-semibold text-gray-900 m-0 text-base mb-1">{issue.title}</h3>
-                <p className="text-sm text-gray-600 mt-1 mb-3 line-clamp-2 leading-snug">{issue.description}</p>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="inline-block px-2.5 py-1 text-[10px] font-bold text-white uppercase rounded-md tracking-wider shadow-sm" style={{ backgroundColor: statusColors[issue.status.toLowerCase().replace('in progress', 'in-progress')] || statusColors.pending }}>
+              <div className="min-w-[220px] max-w-[240px] font-sans">
+                {issue.image ? (
+                  <img src={issue.image} alt={issue.title} className="mb-3 h-28 w-full rounded-xl object-cover" />
+                ) : null}
+                <h3 className="m-0 mb-1 text-base font-semibold text-gray-900">{issue.title}</h3>
+                <p className="mb-3 mt-1 line-clamp-2 text-sm leading-snug text-gray-600">{issue.description}</p>
+                <div className="mb-3 flex items-center gap-2">
+                  <span
+                    className="inline-block rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"
+                    style={{ backgroundColor: statusColors[normalizedStatus] || statusColors.pending }}
+                  >
                     {issue.status}
                   </span>
-                  <span className="text-xs text-gray-500 font-medium">{issue.createdAt}</span>
+                  <span className="text-xs font-medium text-gray-500">{issue.createdAt}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm mb-3">
-                  <span className="flex items-center gap-1.5 text-gray-600 font-medium">
-                    <span className="text-gray-400">👤</span> {issue.reporter}
+                <div className="mb-3 text-sm">
+                  <span className="font-medium text-gray-600">
+                    Reporter: {issue.reporter}
                   </span>
                 </div>
-                <Link href={`/issues/${issue.id}`} className="inline-flex items-center text-blue-600 font-semibold text-sm hover:text-blue-800 transition-colors">
+                <Link
+                  href={`/issues/${issue.id}`}
+                  className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1.5 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                >
                   View Details &rarr;
                 </Link>
               </div>

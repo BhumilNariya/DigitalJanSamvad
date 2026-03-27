@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from './status-badge'
 import type { IssueStatus } from '@/lib/types'
-import { MessageCircle, MapPin, TrendingUp, Image as ImageIcon } from 'lucide-react'
+import { MessageCircle, MapPin, TrendingUp, Image as ImageIcon, AlertTriangle, Clock3 } from 'lucide-react'
 
 // Extended interface to support Mongoose backend (image, _id) or mock data
 export interface Issue {
@@ -29,8 +29,8 @@ interface IssueCardProps {
 // ─── Subcomponents ────────────────────────────────────────────────────────
 
 const IssueHeader = ({ title, status }: { title: string; status: any }) => (
-  <div className="flex justify-between items-start gap-3 mb-2">
-    <h3 className="font-semibold text-foreground line-clamp-2 flex-1 leading-tight">{title}</h3>
+  <div className="flex justify-between items-start gap-3 mb-3">
+    <h3 className="font-semibold text-foreground line-clamp-2 flex-1 leading-tight text-lg tracking-tight">{title}</h3>
     <div className="shrink-0 mt-0.5">
       <StatusBadge status={status} />
     </div>
@@ -44,7 +44,7 @@ const IssueDescription = ({ text }: { text: string }) => (
 )
 
 const IssueLocation = ({ location }: { location: string }) => (
-  <div className="flex items-center gap-1.5 text-sm text-foreground/80 mb-2 font-medium">
+  <div className="flex items-center gap-1.5 text-sm text-foreground/80 mb-3 font-medium">
     <MapPin className="w-4 h-4 text-primary shrink-0" />
     <span className="truncate">{location}</span>
   </div>
@@ -52,11 +52,37 @@ const IssueLocation = ({ location }: { location: string }) => (
 
 const IssueCategory = ({ name }: { name: string }) => (
   <div className="mb-4">
-    <span className="text-[11px] font-semibold tracking-wide uppercase bg-secondary rounded-full px-2.5 py-1 text-secondary-foreground border border-border/50">
+    <span className="inline-flex text-[11px] font-semibold tracking-wide uppercase bg-secondary rounded-full px-2.5 py-1 text-secondary-foreground border border-border/50">
       {name}
     </span>
   </div>
 )
+
+const IssueMeta = ({ createdAt, priority }: { createdAt?: any; priority?: string }) => {
+  const timeAgo = (() => {
+    if (!createdAt) return 'Recently added'
+    const secs = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000)
+    if (Number.isNaN(secs)) return 'Recently added'
+    if (secs < 3600) return `${Math.max(1, Math.floor(secs / 60))} mins ago`
+    if (secs < 86400) return `${Math.floor(secs / 3600)} hrs ago`
+    return `${Math.floor(secs / 86400)} days ago`
+  })()
+
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <Clock3 className="h-3.5 w-3.5" />
+        {timeAgo}
+      </span>
+      {priority === 'high' && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 font-semibold text-rose-700 ring-1 ring-rose-200">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          High Priority
+        </span>
+      )}
+    </div>
+  )
+}
 
 const IssueStats = ({ upvotes, comments }: { upvotes: number; comments?: number }) => (
   <div className="flex gap-4 text-sm text-muted-foreground pt-3 border-t border-border mt-auto">
@@ -82,23 +108,29 @@ export function IssueCard({ issue }: IssueCardProps) {
   // Only treat non-empty, non-whitespace strings as valid image URLs
   const imageUrl = issue.imageUrl?.trim() || ''
   const [imgError, setImgError] = useState(false)
+  const isHighPriority = issue.priority === 'high'
 
   return (
     <Link href={`/issues/${issueId}`}>
-      <Card className="hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col group border-border/60 hover:border-primary/30 overflow-hidden bg-card">
+      <Card className={`surface-card cursor-pointer h-full flex flex-col group overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)] ${isHighPriority ? 'border-rose-200/80' : 'hover:border-primary/30'}`}>
 
         {/* Image or placeholder */}
         {imageUrl && !imgError ? (
-          <div className="h-48 overflow-hidden border-b border-border relative bg-muted">
+          <div className="aspect-[16/10] overflow-hidden border-b border-border relative bg-muted">
             <img
               src={imageUrl}
               alt={issue.title}
               className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
               onError={() => setImgError(true)}
             />
+            {isHighPriority && (
+              <div className="absolute left-3 top-3 rounded-full bg-rose-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+                High Priority
+              </div>
+            )}
           </div>
         ) : (
-          <div className="h-48 bg-muted flex flex-col items-center justify-center border-b border-border">
+          <div className="aspect-[16/10] bg-linear-to-br from-secondary to-muted flex flex-col items-center justify-center border-b border-border">
             <ImageIcon className="w-10 h-10 text-muted-foreground/50 mb-2" />
             <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">No Image</span>
           </div>
@@ -111,6 +143,8 @@ export function IssueCard({ issue }: IssueCardProps) {
 
           <IssueLocation location={locStr || 'Location not specified'} />
 
+          <IssueMeta createdAt={issue.createdAt} priority={issue.priority} />
+
           <IssueCategory name={catStr || 'General'} />
 
           <IssueStats upvotes={issue.upvotes} comments={issue.comments} />
@@ -120,4 +154,3 @@ export function IssueCard({ issue }: IssueCardProps) {
     </Link>
   )
 }
-
