@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { issuesApi, extractIssuesPayload } from '@/lib/api'
+import { useSocket } from '@/hooks/useSocket'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,7 @@ type IssueStatus = 'all' | 'pending' | 'assigned' | 'in-progress' | 'resolved'
 export default function CitizenDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
+  const socket = useSocket()
 
   const [myIssues, setMyIssues] = useState<any[]>([])
   const [communityIssues, setCommunityIssues] = useState<any[]>([])
@@ -50,6 +52,30 @@ export default function CitizenDashboardPage() {
     }
     if (user) fetchIssues()
   }, [user])
+
+  useEffect(() => {
+    if (!socket) return
+
+    const handleIssueUpdated = (updatedIssue: any) => {
+      setCommunityIssues((prev) => prev.map((issue) => issue._id === updatedIssue._id ? updatedIssue : issue))
+      setMyIssues((prev) => prev.map((issue) => issue._id === updatedIssue._id ? updatedIssue : issue))
+    }
+
+    const handleNewIssue = (newIssue: any) => {
+      setCommunityIssues((prev) => [newIssue, ...prev])
+      if ((newIssue.reportedBy?._id || newIssue.reportedBy) === (user as any)?._id) {
+        setMyIssues((prev) => [newIssue, ...prev])
+      }
+    }
+
+    socket.on('issueUpdated', handleIssueUpdated)
+    socket.on('newIssue', handleNewIssue)
+
+    return () => {
+      socket.off('issueUpdated', handleIssueUpdated)
+      socket.off('newIssue', handleNewIssue)
+    }
+  }, [socket, user])
 
   if (isLoading) return null
 

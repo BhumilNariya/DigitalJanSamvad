@@ -58,7 +58,11 @@ export default function IssueDetailModal({ issue, staffUsers, onClose, onRefresh
   const handleAssign = async (staffId: string) => {
     if (!staffId) return
     setAssigning(true)
-    await adminApi.assignStaff(issue._id, staffId)
+    console.log('Assigning:', issue._id, staffId)
+    const response = await adminApi.assignStaff(issue._id, staffId)
+    if (!response.success) {
+      console.error('Assign failed:', response.error)
+    }
     await onRefresh()
     setAssigning(false)
   }

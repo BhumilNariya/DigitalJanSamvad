@@ -131,6 +131,14 @@ export const issuesApi = {
       return { success: false, error: 'Failed to update issue' };
     }
   },
+  async assignIssue(issueId: string, staffId: string): Promise<ApiResponse<Issue>> {
+    try {
+      const res = await apiClient.put(`/issues/${issueId}/assign`, { staffId });
+      return { success: true, data: res.data.data || res.data };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to assign issue' };
+    }
+  },
   async upvote(issueId: string): Promise<ApiResponse<Issue>> {
     // Stub for upvote
     return { success: true, data: {} as Issue };
@@ -208,10 +216,11 @@ export const adminApi = {
   },
   async assignStaff(issueId: string, staffId: string): Promise<ApiResponse<Issue>> {
     try {
+      console.log('Assigning:', issueId, staffId);
       const res = await apiClient.patch(`/admin/issues/${issueId}/assign`, { staffId });
-      return { success: true, data: res.data };
+      return { success: true, data: res.data.data || res.data };
     } catch (error: any) {
-      return { success: false, error: 'Failed to assign staff' };
+      return { success: false, error: error.response?.data?.message || 'Failed to assign staff' };
     }
   },
   async deleteIssue(issueId: string): Promise<ApiResponse<null>> {

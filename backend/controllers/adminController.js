@@ -252,17 +252,33 @@ const rejectIssue = (req, res) => _updateStatus(req, res, 'rejected');
 
 // @desc    Assign staff to an issue
 // @route   PATCH /api/admin/issues/:id/assign
+// @route   PUT /api/issues/:id/assign
 // @access  Private/Admin
 const assignIssue = async (req, res) => {
   try {
     const { staffId } = req.body;
+    console.log('[assignIssue] Assigning:', req.params.id, staffId);
+
+    if (!staffId) {
+      return res.status(400).json({ success: false, message: 'staffId is required' });
+    }
+
+    const staffUser = await User.findById(staffId).select('_id name email role');
+    if (!staffUser) {
+      return res.status(404).json({ success: false, message: 'Staff user not found' });
+    }
+
+    if (staffUser.role !== 'admin' && staffUser.role !== 'staff') {
+      return res.status(400).json({ success: false, message: 'Selected user is not staff' });
+    }
+
     const issue = await Issue.findById(req.params.id);
 
-    if (!issue) return res.status(404).json({ message: 'Issue not found' });
+    if (!issue) return res.status(404).json({ success: false, message: 'Issue not found' });
 
     issue.assignedTo = staffId;
-    // Only auto-advance if still at pending/verified
-    if (issue.status === 'pending' || issue.status === 'verified') {
+    const wasAssigned = issue.status === 'assigned' && issue.assignedTo?.toString() === staffId;
+    if (!wasAssigned) {
       issue.status = 'assigned';
       issue.statusHistory.push({
         status: 'assigned',
@@ -270,7 +286,9 @@ const assignIssue = async (req, res) => {
         updatedAt: new Date()
       });
     }
+
     const updatedIssue = await issue.save();
+    console.log('[assignIssue] Assigned:', updatedIssue.assignedTo?.toString());
 
     const populatedIssue = await Issue.findById(updatedIssue._id)
       .populate('category', 'name icon')
@@ -279,10 +297,18 @@ const assignIssue = async (req, res) => {
       .populate('internalNotes.createdBy', 'name')
       .populate('statusHistory.updatedBy', 'name');
 
+    const notification = await Notification.create({
+      recipient: issue.reportedBy,
+      type: 'issue_assigned',
+      message: `Your issue "${issue.title}" has been assigned to ${staffUser.name}`,
+      issueId: issue._id,
+    });
+
+    getIo().to(issue.reportedBy.toString()).emit('newNotification', notification);
     getIo().emit('issueUpdated', populatedIssue);
-    res.json(populatedIssue);
+    res.json({ success: true, data: populatedIssue });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
