@@ -8,6 +8,8 @@ import { StatusBadge } from '@/components/status-badge'
 import type { IssueStatus } from '@/lib/types'
 import { CommentSection } from '@/components/comment-section'
 import { useSocket } from '@/hooks/useSocket'
+import { issuesApi } from '@/lib/api'
+import { useAuth } from '@/lib/auth-context'
 import {
   MapPin,
   Clock,
@@ -66,16 +68,17 @@ const mockIssueDetails: Record<string, IssueDetail> = {
 
 export default function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { updateUser } = useAuth()
   
   const [issue, setIssue] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [upvoted, setUpvoted] = useState(false)
+  const [upvoteLoading, setUpvoteLoading] = useState(false)
   
   const socket = useSocket()
 
   const fetchIssueData = () => {
-    import('@/lib/api').then(({ issuesApi }) => {
-      issuesApi.getById(id).then(res => {
+    issuesApi.getById(id).then(res => {
         if (res.success && res.data) {
           // Map backend data to our frontend format
           const dbIssue = res.data as any
@@ -109,7 +112,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             location: dbIssue.location || 'Unknown',
             status: dbIssue.status,
             category: dbIssue.category?.name || 'Other',
-            upvotes: dbIssue.upvotes || 0,
+            upvotes: dbIssue.upvotes || dbIssue.votes || 0,
             reportedBy: dbIssue.reportedBy?.name || 'Citizen',
             reportedDate: new Date(dbIssue.createdAt),
             updates: mappedUpdates
@@ -120,7 +123,6 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
         }
         setLoading(false)
       })
-    })
   }
 
   useEffect(() => {
@@ -150,8 +152,28 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
 
   if (!issue) return <div>Issue not found</div>
 
-  const handleUpvote = () => {
-    setUpvoted(!upvoted)
+  const handleUpvote = async () => {
+    if (upvoted || upvoteLoading) {
+      return
+    }
+
+    setUpvoteLoading(true)
+    const response = await issuesApi.upvote(id)
+
+    if (response.success && response.data) {
+      setIssue((prev: any) => prev ? {
+        ...prev,
+        upvotes: response.data?.upvotes || response.data?.votes || prev.upvotes,
+      } : prev)
+      setUpvoted(true)
+
+      const currentUserResponse = await import('@/lib/api').then(({ authApi }) => authApi.getCurrentUser())
+      if (currentUserResponse.success && currentUserResponse.data) {
+        updateUser(currentUserResponse.data)
+      }
+    }
+
+    setUpvoteLoading(false)
   }
 
   return (
@@ -213,7 +235,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                 <div className="flex items-center gap-1">
                   <ThumbsUp className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium text-foreground">
-                    {issue.upvotes + (upvoted ? 1 : 0)}
+                    {issue.upvotes}
                   </span>
                 </div>
               </div>
@@ -285,9 +307,10 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   className="w-full"
                   variant={upvoted ? 'default' : 'outline'}
                   onClick={handleUpvote}
+                  disabled={upvoted || upvoteLoading}
                 >
                   <ThumbsUp className="w-4 h-4 mr-2" />
-                  {upvoted ? 'Upvoted' : 'Upvote'}
+                  {upvoteLoading ? 'Upvoting...' : upvoted ? 'Upvoted' : 'Upvote'}
                 </Button>
                 <Button className="w-full" variant="outline">
                   <Share2 className="w-4 h-4 mr-2" />
@@ -316,7 +339,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
                   <div>
                     <p className="text-muted-foreground text-xs mb-1">Total Support</p>
                     <p className="text-foreground font-medium">
-                      {issue.upvotes + (upvoted ? 1 : 0)} upvotes
+                      {issue.upvotes} upvotes
                     </p>
                   </div>
                 </div>

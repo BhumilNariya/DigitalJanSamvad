@@ -1,5 +1,5 @@
 const express = require('express');
-const { createIssue, getIssues, getIssueById } = require('../controllers/issueController');
+const { createIssue, getIssues, getIssueById, upvoteIssue } = require('../controllers/issueController');
 const { assignIssue } = require('../controllers/adminController');
 const { getComments, addComment } = require('../controllers/commentController');
 const { protect } = require('../middleware/authMiddleware');
@@ -12,6 +12,7 @@ router.route('/').get(getIssues);
 
 router.route('/:id').get(getIssueById);
 router.put('/:id/assign', protect, admin, assignIssue);
+router.post('/:id/upvote', protect, upvoteIssue);
 router.route('/:id/comments').get(getComments).post(protect, addComment);
 
 module.exports = router;

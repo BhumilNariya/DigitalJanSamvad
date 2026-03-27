@@ -3,6 +3,7 @@ const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
 const { getIo } = require('../socket/socketServer');
 const axios = require('axios');
+const { awardUpvotePoints } = require('../utils/gamification');
 
 // ─── Helper: upload a Buffer to Cloudinary using a data URI ────────────────
 // Avoids all stream/pipe complexity — works reliably with Cloudinary SDK v2
@@ -270,4 +271,57 @@ const getIssueById = async (req, res) => {
   }
 };
 
-module.exports = { createIssue, getIssues, getIssueById };
+// @desc    Upvote an issue
+// @route   POST /api/issues/:id/upvote
+// @access  Private
+const upvoteIssue = async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id);
+
+    if (!issue) {
+      return res.status(404).json({ success: false, message: 'Issue not found' });
+    }
+
+    const userId = req.user._id.toString();
+    const alreadyUpvoted = (issue.upvotedBy || []).some((id) => id.toString() === userId);
+
+    if (alreadyUpvoted) {
+      return res.status(400).json({ success: false, message: 'You have already upvoted this issue' });
+    }
+
+    issue.upvotedBy.push(req.user._id);
+    issue.votes += 1;
+    issue.upvotes += 1;
+
+    const reporter = await User.findById(issue.reportedBy);
+    const reporterRewarded = await awardUpvotePoints(reporter, issue);
+
+    await issue.save();
+    if (reporterRewarded) {
+      await reporter.save();
+    }
+
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate('category', 'name icon')
+      .populate('reportedBy', 'name avatar email mobileNumber')
+      .populate('assignedTo', 'name')
+      .populate('statusHistory.updatedBy', 'name');
+
+    try {
+      getIo().emit('issueUpdated', populatedIssue);
+      if (reporterRewarded) {
+        const topUsers = await User.find({})
+          .sort({ points: -1, issuesReported: -1, createdAt: 1 })
+          .limit(10)
+          .select('name avatar points weeklyPoints monthlyPoints issuesReported issuesResolved verifiedIssuesCount badges');
+        getIo().emit('leaderboardUpdated', topUsers);
+      }
+    } catch (_) {}
+
+    res.json({ success: true, data: populatedIssue });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createIssue, getIssues, getIssueById, upvoteIssue };

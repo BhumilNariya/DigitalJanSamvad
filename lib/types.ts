@@ -10,8 +10,13 @@ export interface User {
   location?: string
   avatar?: string
   points: number
+  weeklyPoints?: number
+  monthlyPoints?: number
   issuesReported: number
   issuesResolved: number
+  verifiedIssuesCount?: number
+  badges?: string[]
+  rank?: number
   createdAt: string
 }
 
@@ -71,7 +76,9 @@ export interface AdminNote {
 export interface StatusHistoryEntry {
   status: IssueStatus
   changedBy?: { _id: string; name: string }
-  changedAt: string
+  changedAt?: string
+  updatedBy?: { _id: string; name: string }
+  updatedAt?: string
 }
 
 export interface Issue {
@@ -81,7 +88,7 @@ export interface Issue {
   description: string
   category: any
   status: IssueStatus
-  priority: IssuePriority
+  priority?: IssuePriority
   location?: any
   latitude?: number
   longitude?: number
@@ -138,6 +145,10 @@ export interface ApiResponse<T> {
   success: boolean
   data?: T
   error?: string
+}
+
+export interface LeaderboardUser extends User {
+  score?: number
 }
 
 // Category metadata

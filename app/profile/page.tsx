@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
-import { issuesApi, extractIssuesPayload } from '@/lib/api'
+import { authApi, issuesApi, extractIssuesPayload } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation'
 type IssueStatus = 'all' | 'pending' | 'assigned' | 'in-progress' | 'resolved'
 
 export default function CitizenDashboardPage() {
-  const { user, isAuthenticated, isLoading } = useAuth()
+  const { user, isAuthenticated, isLoading, updateUser } = useAuth()
   const router = useRouter()
   const socket = useSocket()
 
@@ -54,11 +54,29 @@ export default function CitizenDashboardPage() {
   }, [user])
 
   useEffect(() => {
+    const refreshProfile = async () => {
+      const response = await authApi.getCurrentUser()
+      if (response.success && response.data) {
+        updateUser(response.data)
+      }
+    }
+
+    if (user) {
+      refreshProfile()
+    }
+  }, [user?._id, updateUser])
+
+  useEffect(() => {
     if (!socket) return
 
     const handleIssueUpdated = (updatedIssue: any) => {
       setCommunityIssues((prev) => prev.map((issue) => issue._id === updatedIssue._id ? updatedIssue : issue))
       setMyIssues((prev) => prev.map((issue) => issue._id === updatedIssue._id ? updatedIssue : issue))
+      authApi.getCurrentUser().then((response) => {
+        if (response.success && response.data) {
+          updateUser(response.data)
+        }
+      })
     }
 
     const handleNewIssue = (newIssue: any) => {
@@ -121,6 +139,37 @@ export default function CitizenDashboardPage() {
       </div>
 
       {/* Tabs */}
+      {user && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="border border-border rounded-lg p-4 bg-background">
+            <p className="text-xs text-muted-foreground mb-1">Points</p>
+            <p className="text-2xl font-bold text-foreground">{user.points ?? 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Week {user.weeklyPoints ?? 0} | Month {user.monthlyPoints ?? 0}
+            </p>
+          </div>
+          <div className="border border-border rounded-lg p-4 bg-background">
+            <p className="text-xs text-muted-foreground mb-1">Rank</p>
+            <p className="text-2xl font-bold text-foreground">#{user.rank ?? '-'}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Verified reports {user.verifiedIssuesCount ?? 0}
+            </p>
+          </div>
+          <div className="border border-border rounded-lg p-4 bg-background md:col-span-2">
+            <p className="text-xs text-muted-foreground mb-2">Badges</p>
+            <div className="flex flex-wrap gap-2">
+              {(user.badges && user.badges.length > 0) ? user.badges.map((badge) => (
+                <span key={badge} className="px-2.5 py-1 rounded-full border border-border text-xs font-medium text-foreground bg-secondary">
+                  {badge}
+                </span>
+              )) : (
+                <span className="text-sm text-muted-foreground">No badges yet. Verified reports unlock rewards.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex border border-border rounded-lg overflow-hidden mb-6">
         <button
           onClick={() => setActiveTab('my')}
@@ -245,6 +294,11 @@ export default function CitizenDashboardPage() {
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <StatusBadge status={issue.status} />
+                  {issue.assignedTo?.name && (
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {issue.assignedTo.name}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(issue.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </span>

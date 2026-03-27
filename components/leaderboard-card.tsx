@@ -12,6 +12,7 @@ export interface LeaderboardEntry {
   issuesReported: number
   avatar?: string
   rank: number
+  metricLabel?: string
 }
 
 interface LeaderboardCardProps {
@@ -56,7 +57,7 @@ export function LeaderboardCard({ entry }: LeaderboardCardProps) {
               <div className="flex items-center gap-1">
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <span className="font-bold text-primary">{entry.points}</span>
-                <span className="text-xs text-muted-foreground">points</span>
+                <span className="text-xs text-muted-foreground">{entry.metricLabel || 'points'}</span>
               </div>
             </div>
           </div>

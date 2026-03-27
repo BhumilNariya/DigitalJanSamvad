@@ -254,7 +254,7 @@ export default function AdminIssuesPage() {
     const response = await adminApi.assignStaff(issueId, staffId)
     if (response.success && response.data) {
       setIssues(prev => prev.map(issue => issue._id === issueId ? response.data : issue))
-      setSelectedIssue(prev => prev && prev._id === issueId ? response.data : prev)
+      setSelectedIssue((prev: any) => prev && prev._id === issueId ? response.data : prev)
     } else {
       console.error('Assign failed:', response.error)
       await fetchData()

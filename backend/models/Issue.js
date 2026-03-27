@@ -26,6 +26,10 @@ const IssueSchema = new mongoose.Schema({
   reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 
   votes: { type: Number, default: 0 },
+  upvotes: { type: Number, default: 0 },
+  upvotedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  rewardedForVerification: { type: Boolean, default: false },
+  rewardedForResolution: { type: Boolean, default: false },
   internalNotes: [internalNoteSchema],
   statusHistory: [{
     status: { type: String, required: true },

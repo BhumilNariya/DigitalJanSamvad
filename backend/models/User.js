@@ -9,7 +9,17 @@ const UserSchema = new mongoose.Schema({
   avatar: { type: String },
   role: { type: String, enum: ['user', 'admin', 'staff'], default: 'user' },
   points: { type: Number, default: 0 },
-  issuesReported: { type: Number, default: 0 }
+  weeklyPoints: { type: Number, default: 0 },
+  monthlyPoints: { type: Number, default: 0 },
+  weeklyWindowStart: { type: Date, default: null },
+  monthlyWindowStart: { type: Date, default: null },
+  issuesReported: { type: Number, default: 0 },
+  issuesResolved: { type: Number, default: 0 },
+  verifiedIssuesCount: { type: Number, default: 0 },
+  badges: {
+    type: [String],
+    default: [],
+  },
 }, { timestamps: true });
 
 UserSchema.pre('save', async function () {

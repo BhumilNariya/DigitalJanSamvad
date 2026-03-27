@@ -1,92 +1,62 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { LeaderboardCard, type LeaderboardEntry } from '@/components/leaderboard-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Medal, TrendingUp, Zap } from 'lucide-react'
-
-const mockLeaderboard: LeaderboardEntry[] = [
-  {
-    id: 'user-1',
-    name: 'Rajesh Patel',
-    points: 2450,
-    issuesReported: 28,
-    rank: 1,
-  },
-  {
-    id: 'user-2',
-    name: 'Priya Sharma',
-    points: 2180,
-    issuesReported: 24,
-    rank: 2,
-  },
-  {
-    id: 'user-3',
-    name: 'Amit Desai',
-    points: 1890,
-    issuesReported: 21,
-    rank: 3,
-  },
-  {
-    id: 'user-4',
-    name: 'Neha Mehta',
-    points: 1650,
-    issuesReported: 18,
-    rank: 4,
-  },
-  {
-    id: 'user-5',
-    name: 'Vikram Joshi',
-    points: 1420,
-    issuesReported: 16,
-    rank: 5,
-  },
-  {
-    id: 'user-6',
-    name: 'Kavita Thakkar',
-    points: 1280,
-    issuesReported: 14,
-    rank: 6,
-  },
-  {
-    id: 'user-7',
-    name: 'Dharmesh Shah',
-    points: 1100,
-    issuesReported: 12,
-    rank: 7,
-  },
-  {
-    id: 'user-8',
-    name: 'Meera Parmar',
-    points: 950,
-    issuesReported: 11,
-    rank: 8,
-  },
-  {
-    id: 'user-9',
-    name: 'Suresh Solanki',
-    points: 820,
-    issuesReported: 9,
-    rank: 9,
-  },
-  {
-    id: 'user-10',
-    name: 'Hetal Trivedi',
-    points: 720,
-    issuesReported: 8,
-    rank: 10,
-  },
-]
+import { leaderboardApi } from '@/lib/api'
 
 type SortBy = 'points' | 'issues' | 'recent'
+type Timeframe = 'all-time' | 'month' | 'week'
 
 export default function LeaderboardPage() {
   const [sortBy, setSortBy] = useState<SortBy>('points')
-  const [filterTimeframe, setFilterTimeframe] = useState<'all-time' | 'month' | 'week'>('all-time')
+  const [filterTimeframe, setFilterTimeframe] = useState<Timeframe>('all-time')
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const metricLabel = sortBy === 'issues' && filterTimeframe === 'all-time' ? 'issues' : 'points'
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLoading(true)
+
+      const response = filterTimeframe === 'week'
+        ? await leaderboardApi.getWeekly()
+        : filterTimeframe === 'month'
+          ? await leaderboardApi.getMonthly()
+          : sortBy === 'issues'
+            ? await leaderboardApi.getMostReported()
+            : await leaderboardApi.getTopUsers()
+
+      if (response.success && response.data) {
+        const formatted = response.data.map((entry: any, index: number) => ({
+          id: entry._id || entry.id,
+          name: entry.name,
+          points: filterTimeframe === 'week'
+            ? entry.weeklyPoints ?? entry.score ?? 0
+            : filterTimeframe === 'month'
+              ? entry.monthlyPoints ?? entry.score ?? 0
+              : sortBy === 'issues'
+                ? entry.score ?? entry.issuesReported ?? 0
+                : entry.points ?? entry.score ?? 0,
+          issuesReported: entry.issuesReported ?? 0,
+          rank: entry.rank ?? index + 1,
+          metricLabel: sortBy === 'issues' && filterTimeframe === 'all-time' ? 'issues' : 'points',
+        }))
+        setLeaderboard(formatted)
+      } else {
+        setLeaderboard([])
+      }
+
+      setLoading(false)
+    }
+
+    fetchLeaderboard()
+  }, [filterTimeframe, sortBy])
 
   const sortedLeaderboard = useMemo(() => {
-    const sorted = [...mockLeaderboard]
+    const sorted = [...leaderboard]
 
     if (sortBy === 'points') {
       sorted.sort((a, b) => b.points - a.points)
@@ -101,7 +71,7 @@ export default function LeaderboardPage() {
       ...entry,
       rank: idx + 1,
     }))
-  }, [sortBy])
+  }, [leaderboard, sortBy])
 
   return (
     <div className="w-full">
@@ -209,7 +179,7 @@ export default function LeaderboardPage() {
 
                   <div className="space-y-3 text-sm">
                     <div className="bg-secondary rounded-lg p-3">
-                      <p className="text-muted-foreground mb-1">Points</p>
+                      <p className="text-muted-foreground mb-1">{metricLabel === 'issues' ? 'Issues Reported' : 'Points'}</p>
                       <p className="text-2xl font-bold text-foreground">{entry.points}</p>
                     </div>
                     <div className="bg-secondary rounded-lg p-3">
@@ -227,11 +197,17 @@ export default function LeaderboardPage() {
       {/* Full Leaderboard */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <h2 className="text-2xl font-bold text-foreground mb-6">Full Rankings</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {sortedLeaderboard.map((entry) => (
-            <LeaderboardCard key={entry.id} entry={entry} />
-          ))}
-        </div>
+        {loading ? (
+          <p className="text-muted-foreground">Loading rankings...</p>
+        ) : sortedLeaderboard.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {sortedLeaderboard.map((entry) => (
+              <LeaderboardCard key={entry.id} entry={entry} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">No leaderboard data available yet.</p>
+        )}
       </section>
 
       {/* Leaderboard Info */}
@@ -243,7 +219,7 @@ export default function LeaderboardPage() {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Report an Issue</h3>
                 <p className="text-sm text-muted-foreground">
-                  Earn 50 points for each new issue you report
+                  Earn rewards once your reported issue is verified
                 </p>
               </CardContent>
             </Card>
@@ -261,7 +237,7 @@ export default function LeaderboardPage() {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Contribute Comments</h3>
                 <p className="text-sm text-muted-foreground">
-                  Earn 10 points for helpful comments with upvotes
+                  Verified reports and resolutions unlock badges over time
                 </p>
               </CardContent>
             </Card>

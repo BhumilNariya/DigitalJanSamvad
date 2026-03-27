@@ -4,6 +4,7 @@ import type {
   User, 
   Issue, 
   Comment,
+  LeaderboardUser,
   Notification,
   LoginCredentials, 
   RegisterData, 
@@ -140,8 +141,12 @@ export const issuesApi = {
     }
   },
   async upvote(issueId: string): Promise<ApiResponse<Issue>> {
-    // Stub for upvote
-    return { success: true, data: {} as Issue };
+    try {
+      const res = await apiClient.post(`/issues/${issueId}/upvote`);
+      return { success: true, data: res.data.data || res.data };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.message || 'Failed to upvote issue' };
+    }
   }
 };
 
@@ -163,12 +168,36 @@ export function extractIssuesPayload(payload: any) {
 }
 
 export const leaderboardApi = {
-  async getTopUsers(): Promise<ApiResponse<User[]>> {
+  async getTopUsers(): Promise<ApiResponse<LeaderboardUser[]>> {
     try {
       const res = await apiClient.get('/leaderboard');
-      return { success: true, data: res.data };
+      return { success: true, data: res.data.data || res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to fetch leaderboard' };
+    }
+  },
+  async getWeekly(): Promise<ApiResponse<LeaderboardUser[]>> {
+    try {
+      const res = await apiClient.get('/leaderboard/weekly');
+      return { success: true, data: res.data.data || res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch weekly leaderboard' };
+    }
+  },
+  async getMonthly(): Promise<ApiResponse<LeaderboardUser[]>> {
+    try {
+      const res = await apiClient.get('/leaderboard/monthly');
+      return { success: true, data: res.data.data || res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch monthly leaderboard' };
+    }
+  },
+  async getMostReported(): Promise<ApiResponse<LeaderboardUser[]>> {
+    try {
+      const res = await apiClient.get('/leaderboard/reported');
+      return { success: true, data: res.data.data || res.data };
+    } catch (error: any) {
+      return { success: false, error: 'Failed to fetch issues leaderboard' };
     }
   }
 };

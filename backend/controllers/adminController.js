@@ -2,6 +2,17 @@ const User = require('../models/User');
 const Issue = require('../models/Issue');
 const Notification = require('../models/Notification');
 const { getIo } = require('../socket/socketServer');
+const {
+  syncPointWindows,
+  awardVerificationPoints,
+  awardResolutionPoints,
+  formatLeaderboardEntry,
+} = require('../utils/gamification');
+
+const emitLeaderboardUpdate = async () => {
+  const users = await User.find({}).sort({ points: -1, issuesReported: -1, createdAt: 1 }).limit(10);
+  getIo().emit('leaderboardUpdated', users.map((user, index) => formatLeaderboardEntry(user, index + 1)));
+};
 
 // @desc    Get dashboard stats (users, issues)
 // @route   GET /api/admin/dashboard
@@ -78,6 +89,8 @@ const getDashboardStats = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     const users = await User.find({}).select('-password');
+    users.forEach((user) => syncPointWindows(user));
+    await Promise.all(users.map((user) => user.save()));
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -190,17 +203,21 @@ const _updateStatus = async (req, res, newStatus) => {
 
     const updatedIssue = await issue.save();
 
-    // Award +20 points to reporter when resolved
-    if (isStatusChanged && oldStatus !== 'resolved' && updatedIssue.status === 'resolved') {
-      const user = await User.findById(issue.reportedBy);
-      if (user) {
-        user.points += 20;
-        await user.save();
-        const leaderboard = await User.find({})
-          .sort({ points: -1 })
-          .limit(10)
-          .select('name avatar points issuesReported');
-        getIo().emit('leaderboardUpdated', leaderboard);
+    if (isStatusChanged) {
+      const reporter = await User.findById(issue.reportedBy);
+      let rewardsChanged = false;
+
+      if (reporter && updatedIssue.status === 'verified' && oldStatus !== 'verified') {
+        rewardsChanged = await awardVerificationPoints(reporter, updatedIssue) || rewardsChanged;
+      }
+
+      if (reporter && updatedIssue.status === 'resolved' && oldStatus !== 'resolved') {
+        rewardsChanged = await awardResolutionPoints(reporter, updatedIssue) || rewardsChanged;
+      }
+
+      if (rewardsChanged) {
+        await Promise.all([reporter.save(), updatedIssue.save()]);
+        await emitLeaderboardUpdate();
       }
     }
 
@@ -238,7 +255,7 @@ const _updateStatus = async (req, res, newStatus) => {
     // Broadcast issue updated to all
     getIo().emit('issueUpdated', populatedIssue);
 
-    res.json(populatedIssue);
+    res.json({ success: true, data: populatedIssue });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
