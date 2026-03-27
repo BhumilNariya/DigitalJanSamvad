@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
-import { issuesApi } from '@/lib/api'
+import { issuesApi, extractIssuesPayload } from '@/lib/api'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,7 +37,9 @@ export default function CitizenDashboardPage() {
       setLoadingIssues(true)
       const res = await issuesApi.getAll()
       if (res.success && res.data) {
-        const all = (Array.isArray(res.data) ? res.data : res.data.issues || []) as any[]
+        const payload = extractIssuesPayload(res.data)
+        const all = payload.issues as any[]
+        console.log('Issues State:', all)
         const mine = user ? all.filter((i: any) =>
           (i.reportedBy?._id || i.reportedBy?.id || i.reportedBy) === (user as any)._id
         ) : []
@@ -197,9 +199,9 @@ export default function CitizenDashboardPage() {
               >
                 {/* Thumbnail Image */}
                 <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center">
-                  {(issue.image || issue.image) ? (
+                  {issue.imageUrl ? (
                     <img 
-                      src={issue.image || issue.image} 
+                      src={issue.imageUrl} 
                       alt={issue.title} 
                       className="w-full h-full object-cover"
                     />
@@ -212,7 +214,7 @@ export default function CitizenDashboardPage() {
                   <p className="font-medium text-foreground truncate">{issue.title}</p>
                   <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
                     <MapPin className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{issue.location?.address || 'Location not specified'}</span>
+                    <span className="truncate">{issue.location || 'Location not specified'}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">

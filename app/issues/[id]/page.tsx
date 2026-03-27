@@ -106,7 +106,7 @@ export default function IssueDetailPage({ params }: { params: Promise<{ id: stri
             description: dbIssue.description,
             longDescription: dbIssue.description,
             image: dbIssue.imageUrl,
-            location: dbIssue.location?.address || 'Unknown',
+            location: dbIssue.location || 'Unknown',
             status: dbIssue.status,
             category: dbIssue.category?.name || 'Other',
             upvotes: dbIssue.upvotes || 0,

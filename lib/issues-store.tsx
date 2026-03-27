@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import type { Issue, CreateIssueData, User } from './types'
-import { issuesApi } from './api'
+import { issuesApi, extractIssuesPayload } from './api'
 
 interface IssuesContextType {
   issues: Issue[]
@@ -258,8 +258,14 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
       // Check if we have stored issues
       const response = await issuesApi.getAll()
       
-      if (response.success && response.data && response.data.length > 0) {
-        setIssues(response.data)
+      if (response.success && response.data) {
+        const payload = extractIssuesPayload(response.data)
+        if (payload.issues.length > 0) {
+          setIssues(payload.issues)
+        } else {
+          setIssues(initialMockIssues)
+          localStorage.setItem('jansamvad_issues', JSON.stringify(initialMockIssues))
+        }
       } else {
         // Use initial mock issues if no stored issues
         setIssues(initialMockIssues)
@@ -313,7 +319,8 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     const response = await issuesApi.getAll()
     
     if (response.success && response.data) {
-      setIssues(response.data)
+      const payload = extractIssuesPayload(response.data)
+      setIssues(payload.issues)
     }
     setIsLoading(false)
   }, [])

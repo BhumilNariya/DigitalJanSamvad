@@ -144,8 +144,8 @@ const createIssue = async (req, res) => {
       reportedBy: req.user._id,
       statusHistory: [{
         status: 'pending',
-        changedBy: req.user._id,
-        changedAt: new Date()
+        updatedBy: req.user._id,
+        updatedAt: new Date()
       }]
     });
 
@@ -229,12 +229,16 @@ const getIssues = async (req, res) => {
     const issues = await Issue.find(query)
       .populate('category', 'name icon')
       .populate('reportedBy', 'name avatar')
-      .populate('statusHistory.changedBy', 'name')
+      .populate('statusHistory.updatedBy', 'name')
       .sort(sortOption)
       .skip(skip)
       .limit(limit);
 
+    console.log('[getIssues] Returning issues:', issues.length);
+
     res.json({
+      success: true,
+      data: issues,
       issues,
       totalIssues,
       totalPages: Math.ceil(totalIssues / limit),
@@ -254,7 +258,7 @@ const getIssueById = async (req, res) => {
       .populate('category', 'name icon')
       .populate('reportedBy', 'name avatar email mobileNumber')
       .populate('assignedTo', 'name')
-      .populate('statusHistory.changedBy', 'name');
+      .populate('statusHistory.updatedBy', 'name');
 
     if (issue) {
       res.json(issue);

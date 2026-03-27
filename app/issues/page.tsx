@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { issuesApi, categoryApi } from '@/lib/api'
+import { issuesApi, categoryApi, extractIssuesPayload } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -49,22 +49,24 @@ export default function IssuesPage() {
 
     const res = await issuesApi.getAll(params)
     if (res.success && res.data) {
-      const formatted = (res.data.issues || []).map((issue: any) => ({
+      const payload = extractIssuesPayload(res.data)
+      const formatted = payload.issues.map((issue: any) => ({
         id: issue._id,
         title: issue.title,
         description: issue.description,
-        location: issue.location?.address || issue.location || 'Unknown',
+        location: issue.location || 'Unknown',
         status: issue.status || 'pending',
         category: issue.category?.name || 'Other',
         upvotes: issue.upvotes || issue.votes || 0,
         imageUrl: issue.imageUrl,
-        comments: issue.comments || 0,
+        comments: issue.commentsCount || issue.comments || 0,
         createdAt: issue.createdAt || new Date()
       }))
+      console.log('Issues State:', formatted)
       setIssuesData(formatted)
-      setTotalPages(res.data.totalPages || 1)
-      setTotalIssues(res.data.totalIssues || formatted.length)
-      setPage(res.data.currentPage || 1)
+      setTotalPages(payload.totalPages)
+      setTotalIssues(payload.totalIssues)
+      setPage(payload.currentPage)
     }
     setLoading(false)
   }, [page, selectedCategory, selectedStatus, searchQuery, sortBy])

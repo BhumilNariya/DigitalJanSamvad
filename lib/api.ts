@@ -72,6 +72,7 @@ export const issuesApi = {
   async getAll(params?: any): Promise<ApiResponse<any>> {
     try {
       const res = await apiClient.get('/issues', { params });
+      console.log('API Response:', res.data);
       return { success: true, data: res.data };
     } catch (error: any) {
       return { success: false, error: 'Failed to fetch issues' };
@@ -135,6 +136,23 @@ export const issuesApi = {
     return { success: true, data: {} as Issue };
   }
 };
+
+export function extractIssuesPayload(payload: any) {
+  const issues = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.issues)
+      ? payload.issues
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  return {
+    issues,
+    totalIssues: payload?.totalIssues ?? issues.length,
+    totalPages: payload?.totalPages ?? 1,
+    currentPage: payload?.currentPage ?? 1,
+  };
+}
 
 export const leaderboardApi = {
   async getTopUsers(): Promise<ApiResponse<User[]>> {
@@ -280,4 +298,3 @@ export const notificationApi = {
 };
 
 export default apiClient;
-
