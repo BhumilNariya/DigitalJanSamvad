@@ -2,121 +2,120 @@
 
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { MessageSquare, Menu, X, LogOut, User as UserIcon, AlertTriangle } from 'lucide-react'
+import { Menu, X, LogOut, User as UserIcon, AlertTriangle, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { NotificationBell } from '@/components/notification-bell'
+import { Brand } from '@/components/brand'
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const { user, logout, isAuthenticated } = useAuth()
 
+  const navLinks = [
+    { href: '/issues', label: 'Issues' },
+    { href: '/leaderboard', label: 'Leaderboard' },
+    { href: '/about', label: 'About' },
+    { href: '/issue-map', label: 'Issue Map' },
+  ]
+
   return (
-    <nav className="border-b border-border bg-card sticky top-0 z-50">
+    <nav className="sticky top-0 z-50 border-b border-border/80 bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="h-[3px] w-full bg-linear-to-r from-primary via-accent to-primary/70" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-none flex justify-start nav-left">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-bold text-lg text-foreground hidden sm:inline">Digital Jan Samvad</span>
-            </Link>
+        <div className="flex min-h-[72px] items-center justify-between gap-4">
+          <div className="flex-none">
+            <Brand compact />
           </div>
 
-          {/* Desktop Navigation - Centered */}
-          <div className="hidden md:flex flex-1 flex-wrap items-center justify-center gap-[28px] nav-center px-4">
-            <Link href="/issues" className="text-foreground hover:text-primary transition-colors font-medium whitespace-nowrap">
-              Issues
-            </Link>
-            <Link href="/leaderboard" className="text-foreground hover:text-primary transition-colors font-medium whitespace-nowrap">
-              Leaderboard
-            </Link>
-            <Link href="/about" className="text-foreground hover:text-primary transition-colors font-medium whitespace-nowrap">
-              About
-            </Link>
-            <Link href="/issue-map" className="text-foreground hover:text-primary transition-colors font-medium whitespace-nowrap">
-              Issue Map
-            </Link>
+          <div className="hidden md:flex flex-1 items-center justify-center gap-7 px-4">
+            {navLinks.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
 
-          {/* Desktop Buttons */}
-          <div className="hidden md:flex flex-none items-center justify-end gap-4 nav-right">
+          <div className="hidden md:flex flex-none items-center justify-end gap-3">
             {isAuthenticated && user ? (
               <>
-                <Link href="/profile" className="flex items-center gap-2 mr-1 text-sm font-medium hover:text-primary transition-colors">
-                  <UserIcon className="w-4 h-4 text-muted-foreground" />
-                  <span className="username whitespace-nowrap">{user.name}</span>
+                <Link
+                  href="/profile"
+                  className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary/70 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary"
+                >
+                  <UserIcon className="w-4 h-4 text-primary" />
+                  <span className="max-w-[120px] truncate">{user.name}</span>
                 </Link>
                 <NotificationBell />
-                <Button variant="outline" size="sm" onClick={logout} className="whitespace-nowrap">
+                <Button variant="outline" size="sm" className="rounded-full" onClick={logout}>
                   <LogOut className="w-4 h-4 mr-2 hidden lg:inline" />
                   Logout
                 </Button>
               </>
             ) : (
-              <Button variant="outline" asChild className="whitespace-nowrap">
+              <Button variant="outline" size="sm" className="rounded-full" asChild>
                 <Link href="/login">Sign In</Link>
               </Button>
             )}
-            <Button variant="destructive" asChild className="font-bold flex gap-1.5 items-center bg-red-600 hover:bg-red-700">
+
+            <Button variant="destructive" size="sm" className="rounded-full bg-rose-600 hover:bg-rose-700" asChild>
               <Link href="/sos">
                 <AlertTriangle className="w-4 h-4" />
                 SOS
               </Link>
             </Button>
-            <Button asChild>
-              <Link href="/report">Report Issue</Link>
+            <Button size="sm" className="rounded-full shadow-sm" asChild>
+              <Link href="/report">
+                Report Issue
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden"
+            className="md:hidden rounded-xl border border-border/70 bg-background p-2 text-foreground shadow-sm"
             aria-label="Toggle menu"
           >
-            {isOpen ? (
-              <X className="w-6 h-6 text-foreground" />
-            ) : (
-              <Menu className="w-6 h-6 text-foreground" />
-            )}
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
-        {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden border-t border-border pb-4">
-            <div className="flex flex-col gap-4 pt-4">
-              <Link href="/issues" className="text-foreground hover:text-primary transition-colors">
-                Issues
-              </Link>
-              <Link href="/leaderboard" className="text-foreground hover:text-primary transition-colors">
-                Leaderboard
-              </Link>
-              <Link href="/about" className="text-foreground hover:text-primary transition-colors">
-                About
-              </Link>
-              <Link href="/issue-map" className="text-foreground hover:text-primary transition-colors">
-                Issue Map
-              </Link>
-              <div className="flex flex-col gap-2">
+          <div className="md:hidden border-t border-border pb-5 pt-4">
+            <div className="surface-card p-4">
+              <div className="flex flex-col gap-3">
+                {navLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-xl px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
                 {isAuthenticated && user ? (
-                  <Button variant="outline" onClick={logout} className="w-full">
+                  <Button variant="outline" className="w-full rounded-xl justify-start" onClick={logout}>
+                    <LogOut className="w-4 h-4 mr-2" />
                     Logout ({user.name})
                   </Button>
                 ) : (
-                  <Button variant="outline" asChild className="w-full">
+                  <Button variant="outline" className="w-full rounded-xl" asChild>
                     <Link href="/login">Sign In</Link>
                   </Button>
                 )}
-                <Button asChild className="w-full">
+                <Button className="w-full rounded-xl" asChild>
                   <Link href="/report">Report Issue</Link>
                 </Button>
-                <Button variant="destructive" asChild className="w-full font-bold flex gap-2 items-center bg-red-600 hover:bg-red-700">
+                <Button variant="destructive" className="w-full rounded-xl bg-rose-600 hover:bg-rose-700" asChild>
                   <Link href="/sos">
-                    <AlertTriangle className="w-4 h-4" />
+                    <AlertTriangle className="w-4 h-4 mr-2" />
                     SOS Emergency
                   </Link>
                 </Button>
