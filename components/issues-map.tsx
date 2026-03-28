@@ -1,9 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
-import { MapPin, ArrowLeft, Filter, Layers, Globe, ShieldCheck, Clock3, Wrench, CheckCircle2 } from 'lucide-react'
+import { MapPin, Filter, Layers, Globe, ShieldCheck, Clock3, Wrench, CheckCircle2 } from 'lucide-react'
 import type { IssueStatus } from '@/lib/types'
 import { issuesApi, extractIssuesPayload } from '@/lib/api'
 import { useSocket } from '@/hooks/useSocket'
@@ -132,14 +130,6 @@ export function IssuesMap() {
 
   return (
     <div className="w-full flex flex-col items-center">
-      <div className="w-full flex justify-start mb-6 -ml-4">
-        <Button variant="outline" asChild className="gap-2 rounded-full px-5 hover:bg-primary/5 hover:text-primary transition-colors">
-          <Link href="/issues">
-            <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-          </Link>
-        </Button>
-      </div>
-
       <div className="text-center mb-10">
         <div className="w-14 h-14 bg-linear-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border-[4px] border-primary/10">
           <MapPin className="w-6 h-6 text-white" />
