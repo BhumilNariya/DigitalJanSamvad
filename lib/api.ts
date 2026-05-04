@@ -32,7 +32,8 @@ export const authApi = {
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> {
     try {
       const res = await apiClient.post('/auth/login', credentials);
-      return { success: true, data: { user: res.data, token: res.data.token || 'cookie-based' } };
+      const { token, ...user } = res.data;
+      return { success: true, data: { user: user as User, token } };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.message || 'Login failed' };
     }
@@ -46,7 +47,8 @@ export const authApi = {
         mobileNumber: data.phone,
       };
       const res = await apiClient.post('/auth/register', payload);
-      return { success: true, data: { user: res.data, token: res.data.token || 'cookie-based' } };
+      const { token, ...user } = res.data;
+      return { success: true, data: { user: user as User, token } };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.message || 'Registration failed' };
     }
