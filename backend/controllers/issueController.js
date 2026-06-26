@@ -109,13 +109,24 @@ const createIssue = async (req, res) => {
     if (req.body.longitude) lng = parseFloat(req.body.longitude);
     if (req.body.address) locationStr = req.body.address.trim();
 
-    // If location sent as object (e.g. from older clients)
-    if (!locationStr && typeof location === 'object' && location !== null) {
-      locationStr = location.address || '';
-      lat = (lat ?? parseFloat(location.lat || location.latitude)) || null;
-      lng = (lng ?? parseFloat(location.lng || location.longitude)) || null;
-    } else if (!locationStr && typeof location === 'string') {
-      locationStr = location.trim();
+    // If location sent as JSON string (from frontend LocationPicker)
+    let parsedLocation = null;
+    if (location && typeof location === 'string') {
+      try {
+        parsedLocation = JSON.parse(location);
+      } catch (e) {
+        // Not JSON, treat as address string
+        locationStr = location.trim();
+      }
+    } else if (typeof location === 'object' && location !== null) {
+      parsedLocation = location;
+    }
+
+    // Extract coordinates and address from parsed location
+    if (parsedLocation) {
+      locationStr = parsedLocation.address || '';
+      lat = (lat ?? parseFloat(parsedLocation.lat)) || null;
+      lng = (lng ?? parseFloat(parsedLocation.lng)) || null;
     }
 
     // Geocode if address known but coords missing

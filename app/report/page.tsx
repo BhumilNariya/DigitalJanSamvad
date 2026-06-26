@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { AlertCircle, CheckCircle2, ImagePlus, MapPin, ShieldCheck, UploadCloud } from 'lucide-react'
+import { LocationPicker } from '@/components/location-picker'
 import { categoryApi } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
+import type { IssueLocation } from '@/lib/types'
 import axios from 'axios'
 
 export default function ReportIssuePage() {
@@ -21,7 +23,7 @@ export default function ReportIssuePage() {
     title: '',
     description: '',
     category: '',
-    location: '',
+    location: null as IssueLocation | null,
   })
 
   useEffect(() => {
@@ -41,6 +43,13 @@ export default function ReportIssuePage() {
     setFormDataState((prev) => ({
       ...prev,
       [name]: value,
+    }))
+  }
+
+  const handleLocationChange = (location: IssueLocation) => {
+    setFormDataState((prev) => ({
+      ...prev,
+      location,
     }))
   }
 
@@ -64,14 +73,23 @@ export default function ReportIssuePage() {
     formData.append('title', formDataState.title)
     formData.append('description', formDataState.description)
     formData.append('category', formDataState.category)
-    formData.append('location', formDataState.location)
+    
+    // Send location as JSON object with coordinates and address
+    if (formDataState.location) {
+      formData.append('location', JSON.stringify({
+        lat: formDataState.location.lat,
+        lng: formDataState.location.lng,
+        address: formDataState.location.address,
+      }))
+    }
 
     if (photo) {
       formData.append('image', photo)
     }
 
     try {
-      await axios.post('http://localhost:5000/api/issues', formData, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      await axios.post(`${apiBaseUrl}/api/issues`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('jansamvad_token')}`,
         },
@@ -89,7 +107,7 @@ export default function ReportIssuePage() {
     formDataState.title.trim() &&
     formDataState.description.trim() &&
     formDataState.category &&
-    formDataState.location.trim()
+    formDataState.location !== null
 
   return (
     <div className="w-full">
@@ -229,20 +247,13 @@ export default function ReportIssuePage() {
                     <label className="mb-2 block text-sm font-medium text-foreground">
                       Location <span className="text-rose-500">*</span>
                     </label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        type="text"
-                        name="location"
-                        placeholder="e.g., Station Road near the main market"
-                        className="h-11 rounded-xl border-border/70 bg-background/70 pl-10"
-                        value={formDataState.location}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                    <LocationPicker 
+                      value={formDataState.location}
+                      onChange={handleLocationChange}
+                      autoGetLocation={true}
+                    />
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                      Add road names, landmarks, or the nearest junction for better field routing.
+                      Location is automatically detected from your device. You can adjust it on the map, search for a location, or click to select manually.
                     </p>
                   </div>
                 </div>

@@ -13,9 +13,10 @@ interface LocationPickerProps {
   value?: IssueLocation | null
   onChange: (location: IssueLocation) => void
   className?: string
+  autoGetLocation?: boolean
 }
 
-export function LocationPicker({ value, onChange, className }: LocationPickerProps) {
+export function LocationPicker({ value, onChange, className, autoGetLocation = false }: LocationPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markerRef = useRef<any>(null)
@@ -23,6 +24,7 @@ export function LocationPicker({ value, onChange, className }: LocationPickerPro
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
+  const autoLocationAttemptedRef = useRef(false)
 
   // Default center: Ahmedabad, Gujarat
   const defaultCenter = { lat: 23.0225, lng: 72.5714 }
@@ -118,7 +120,16 @@ export function LocationPicker({ value, onChange, className }: LocationPickerPro
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [autoGetLocation, onChange])
+
+  // Auto-get location on mount if enabled and not already attempted
+  useEffect(() => {
+    if (autoGetLocation && !autoLocationAttemptedRef.current && isMapReady) {
+      autoLocationAttemptedRef.current = true
+      handleGetCurrentLocation()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMapReady, autoGetLocation])
 
   // Update marker when value changes externally
   useEffect(() => {
