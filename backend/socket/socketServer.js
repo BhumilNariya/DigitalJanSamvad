@@ -9,7 +9,7 @@ const initSocket = (server) => {
 
   io = socketIo(server, {
     cors: {
-      origin: allowedOrigin,
+      origin: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       credentials: true,
     }

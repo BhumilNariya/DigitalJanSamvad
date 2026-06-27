@@ -42,7 +42,7 @@ seedAdmin();
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:3000';
 
 app.use(cors({
-  origin: allowedOrigin,
+  origin: true, // Reflects the requesting origin (fixes Vercel CORS issues completely)
   credentials: true,
 }));
 
